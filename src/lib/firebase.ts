@@ -13,6 +13,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Verificar que todas las variables estén definidas
+console.log("🔥 Firebase Config:", {
+  apiKey: firebaseConfig.apiKey ? "✅ Definido" : "❌ Faltante",
+  authDomain: firebaseConfig.authDomain ? "✅ Definido" : "❌ Faltante",
+  projectId: firebaseConfig.projectId ? "✅ Definido" : "❌ Faltante",
+  storageBucket: firebaseConfig.storageBucket ? "✅ Definido" : "❌ Faltante",
+  messagingSenderId: firebaseConfig.messagingSenderId ? "✅ Definido" : "❌ Faltante",
+  appId: firebaseConfig.appId ? "✅ Definido" : "❌ Faltante",
+});
+
 // Prevenir inicialización múltiple en desarrollo (Hot Reload)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
