@@ -70,9 +70,19 @@ export async function GET(request: Request) {
     const exchangeRate = await getLatestExchangeRate();
     const rate = exchangeRate?.rate || 4000; // Fallback si no hay rate guardado
 
+    // Obtener multiplicadores de Firestore
+    const { getCargos } = await import("@/lib/firestore-services");
+    const cargosDb = await getCargos();
+    const { CARGO_MULTIPLICADORES } = await import("@/types/salarios");
+    const multipliers: Record<string, number> = { ...CARGO_MULTIPLICADORES };
+    
+    cargosDb.forEach(c => {
+      multipliers[c.nombre] = c.multiplicador;
+    });
+
     // Calcular valores por hora para todos los cargos
     const salarios = CARGOS_LIST.map((cargo: CargoTipo) => {
-      const salarioCompleto = calcularSalarioCompleto(config, cargo);
+      const salarioCompleto = calcularSalarioCompleto(config, cargo, multipliers);
       const recargos = calcularHorasExtrasYRecargos(salarioCompleto.porHora);
       
       return {

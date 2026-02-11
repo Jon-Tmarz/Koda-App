@@ -40,13 +40,22 @@ export async function GET(
   try {
     const { cargo } = await params;
     
+    // Obtener multiplicadores de Firestore
+    const { getCargos } = await import("@/lib/firestore-services");
+    const cargosDb = await getCargos();
+    const multipliers: Record<string, number> = { ...CARGO_MULTIPLICADORES };
+    
+    cargosDb.forEach(c => {
+      multipliers[c.nombre] = c.multiplicador;
+    });
+
     // Validar que el cargo existe
-    if (!(cargo in CARGO_MULTIPLICADORES)) {
+    if (!(cargo in multipliers)) {
       return NextResponse.json(
         {
           success: false,
           error: "Cargo no válido",
-          message: `El cargo "${cargo}" no existe. Cargos válidos: ${Object.keys(CARGO_MULTIPLICADORES).join(", ")}`,
+          message: `El cargo "${cargo}" no existe. Cargos válidos: ${Object.keys(multipliers).join(", ")}`,
         },
         { status: 400 }
       );
@@ -88,8 +97,8 @@ export async function GET(
     const exchangeRate = await getLatestExchangeRate();
     const rate = exchangeRate?.rate || 4000; // Fallback si no hay rate guardado
     
-    // Calcular salario para el cargo específico
-    const salarioCompleto = calcularSalarioCompleto(config, cargo as CargoTipo);
+    // Calcular salario para el cargo específico con multiplicadores dinámicos
+    const salarioCompleto = calcularSalarioCompleto(config, cargo as CargoTipo, multipliers);
     const recargos = calcularHorasExtrasYRecargos(salarioCompleto.porHora);
 
     return NextResponse.json({
