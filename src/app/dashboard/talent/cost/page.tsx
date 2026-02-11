@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Search, Calculator, Users } from "lucide-react";
+import { Pencil, Search, Calculator, Users, Loader2 } from "lucide-react";
+import { useSalarios } from "@/hooks/use-salarios";
 
 export default function TalentCostPage() {
+  const { config, multipliers, loading } = useSalarios();
+  const itemsCalc = [
+    "Salario Base × Multiplicador",
+    "+ Auxilio de Transporte (si aplica)",
+    "× Factor Costo Empleado",
+    "+ Ganancia Empresa (%)",
+    "+ IVA (%)",
+    "= Total Mensual / Horas = Valor Hora"
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -37,7 +48,7 @@ export default function TalentCostPage() {
               IVA, ganancia y costos adicionales para calcular cotizaciones.
             </p>
             <div className="flex justify-center">
-              <Link href="/dashboard/talent/edit" className="w-1/2">
+              <Link href="/dashboard/talent/edit" className="w-full sm:w-auto sm:min-w-[200px]">
                 <Button className="w-full border-solid border-2 border-primary hover:bg-blue-100 hover:dark:text-blue-900">
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar Configuración
@@ -68,7 +79,7 @@ export default function TalentCostPage() {
               según el nivel de experiencia del cargo.
             </p>
             <div className="flex justify-center">
-              <Link href="/dashboard/talent/query" className="w-1/2">
+              <Link href="/dashboard/talent/query" className="w-full sm:w-auto sm:min-w-[200px]">
                 <Button className="w-full border-solid border-2 border-primary hover:bg-blue-100 hover:dark:text-blue-900">
                   <Search className="mr-2 h-4 w-4" />
                   Consultar Salarios
@@ -95,12 +106,9 @@ export default function TalentCostPage() {
                 Multiplicadores por Cargo
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Auxiliar:</strong> 1x Salario Base</li>
-                <li>• <strong>Técnico:</strong> 2x Salario Base</li>
-                <li>• <strong>Tecnólogo:</strong> 3x Salario Base</li>
-                <li>• <strong>Profesional:</strong> 4x Salario Base</li>
-                <li>• <strong>Profesional Especialista:</strong> 5x Salario Base</li>
-                <li>• <strong>Profesional Master:</strong> 7x Salario Base</li>
+                {Object.entries(multipliers).map(([level, multiplier]) => (
+                  <li key={level}>• <strong>{level}:</strong> {multiplier}x Salario Base</li>
+                ))}
               </ul>
             </div>
             <div>
@@ -109,12 +117,9 @@ export default function TalentCostPage() {
                 Componentes del Cálculo
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Salario Base × Multiplicador</li>
-                <li>• + Auxilio de Transporte (si aplica)</li>
-                <li>• × Factor Costo Empleado</li>
-                <li>• + Ganancia Empresa (%)</li>
-                <li>• + IVA (%)</li>
-                <li>• = Total Mensual / Horas = Valor Hora</li>
+                {itemsCalc.map((item, index) => (
+                  <li key={index}>• {item}</li>
+                ))}
               </ul>
             </div>
           </div>

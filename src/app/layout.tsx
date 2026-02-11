@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${montserrat.variable} ${kanit.variable} antialiased`}
+        className={`${montserrat.variable} ${kanit.variable} antialiased text-foreground`}
       >
         <ThemeProvider
           attribute="class"

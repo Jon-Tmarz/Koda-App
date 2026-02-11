@@ -712,17 +712,19 @@ export async function getCargoCalculado(
  * Obtiene todos los cargos calculados para un año específico
  */
 export async function getCargosCalculadosPorAño(año: number): Promise<CargoCalculado[]> {
+  // Importar 'where' de firebase/firestore
+  const { where } = await import("firebase/firestore");
   try {
     const collectionRef = collection(db, COLLECTIONS.CARGOS_CALCULADOS);
-    const querySnapshot = await getDocs(collectionRef);
+    // Filtrar directamente en la consulta de Firestore
+    const q = query(collectionRef, where("año", "==", año), orderBy("multiplicador", "asc"));
+    const querySnapshot = await getDocs(q);
     
     const cargos = querySnapshot.docs
       .map((doc) => ({
         ...doc.data(),
         id: doc.id,
-      }) as CargoCalculado)
-      .filter((cargo) => cargo.año === año)
-      .sort((a, b) => a.multiplicador - b.multiplicador);
+      }) as CargoCalculado);
 
     return cargos;
   } catch (error) {
@@ -840,13 +842,20 @@ export async function generarCargosCalculados(
     // Importar funciones de cálculo (contienen la lógica del multiplicador al final)
     const { calcularSalarioMensual, calcularSalarioPorHora } = await import("./salarios");
 
+    // Obtener multiplicadores de Firestore
+    const cargosDb = await getCargos();
+    const multipliers: Record<string, number> = { ...CARGO_MULTIPLICADORES };
+    cargosDb.forEach(c => {
+      multipliers[c.nombre] = c.multiplicador;
+    });
+
     // Generar cálculos para cada cargo (Auxiliar=1x, Técnico=2x, etc.)
-    for (const [cargoNombre, multiplicador] of Object.entries(CARGO_MULTIPLICADORES)) {
+    for (const [cargoNombre, multiplicador] of Object.entries(multipliers)) {
       try {
         const cargo = cargoNombre as CargoTipo;
         
         // Calcular valores (multiplicador se aplica dentro de estas funciones AL FINAL)
-        const mensual = calcularSalarioMensual(config, cargo);
+        const mensual = calcularSalarioMensual(config, cargo, multipliers);
         const porHora = calcularSalarioPorHora(config, mensual);
 
         // Crear objeto CargoCalculado
