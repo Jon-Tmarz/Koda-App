@@ -1,10 +1,5 @@
 // Lógica de cálculo de costos de talento humano
-import type {
-  SalarioConfig,
-  SalarioMensual,
-  SalarioPorHora,
-  CargoTipo,
-} from "@/types/salarios";
+import type { SalarioConfig, SalarioMensual, SalarioPorHora, CargoTipo, } from "@/types/salarios";
 import { CARGO_MULTIPLICADORES } from "@/types/salarios";
 import { TASAS_RECARGO } from "tributos-co";
 
@@ -42,39 +37,62 @@ export interface ConsultaSalario {
  */
 export function calcularSalarioMensual(
   config: SalarioConfig,
-  cargo: CargoTipo
+  cargo: CargoTipo,
+  customMultipliers?: Record<string, number>
 ): SalarioMensual {
-  const multiplicador = CARGO_MULTIPLICADORES[cargo];
+  const multiplicador = customMultipliers?.[cargo] ?? CARGO_MULTIPLICADORES[cargo];
   
-  // 1. Salario base FIJO (NO multiplicado)
-  const salarioBaseCargo = config.salarioBase;
+  // 1. Salario base del cargo (Base * Multiplicador)
+  const salarioBaseCargo = config.salarioBase * multiplicador;
   
-  // 2. Auxilio de transporte (aplica si el salario bruto <= 2 SMMLV)
-  // Se evalúa ANTES de aplicar el multiplicador
-  const auxilioTransporte = salarioBaseCargo <= config.salarioBase * 2 
-    ? config.auxilioTransporte 
-    : 0;
+  // 2. Auxilio de transporte (Sólo para Auxiliar y Técnico)
+  // Según indicación del usuario, aunque cumpla el tope de 2 SMMLV, 
+  // se restringe a estos dos cargos específicos.
+  const aplicaAuxilio = cargo === "Auxiliar" || cargo === "Técnico";
+  const auxilioTransporte = aplicaAuxilio ? config.auxilioTransporte : 0;
   
-  // 3. Salario bruto = base + auxilio
+  // 3. Salario bruto informativo (Base Cargo + Auxilio)
   const salarioBruto = salarioBaseCargo + auxilioTransporte;
   
-  // 4. Costo empresa = bruto × factor costo empleado (prestaciones, seguridad social)
-  const costoEmpresa = salarioBruto * config.costoEmpleado;
+  // 4. Deducciones del Empleado (Colombia)
+  // Se calculan sobre el salario base del cargo
+  const saludEmpleado = salarioBaseCargo * 0.04;
+  const pensionEmpleado = salarioBaseCargo * 0.04;
   
-  // 5. Ganancia empresa = costo × % ganancia
-  const gananciaValor = costoEmpresa * (config.ganancia / 100);
+  // Fondo de Solidaridad Pensional (1% si el salario base del cargo > 4 SMMLV)
+  let fondoSolidaridad = 0;
+  if (salarioBaseCargo > config.salarioBase * 4) {
+    fondoSolidaridad = salarioBaseCargo * 0.01;
+  }
   
-  // 6. Subtotal = costo + ganancia
-  const subtotal = costoEmpresa + gananciaValor;
+  const totalDeducciones = saludEmpleado + pensionEmpleado + fondoSolidaridad;
   
-  // 7. IVA = subtotal × % IVA
+  // Salario Neto (Según usuario: Salario Base Cargo - Deducciones)
+  // No incluye el auxilio de transporte en el valor neto reportado en esta fórmula
+  const salarioNeto = salarioBaseCargo - totalDeducciones;
+  
+  // 5. Costo Empresa (Solo el recargo prestacional/seguridad social)
+  // Según usuario: salarioBase * 48.3%
+  const costoEmpresa = salarioBaseCargo * (config.costoEmpleado / 100);
+  
+  // 5b. Costo Laboral Total (Base + Carga)
+  // Según usuario: 1750905 + 845687 = 2596592
+  const costoLaboralTotal = salarioBaseCargo + costoEmpresa;
+  
+  // 6. Ganancia Empresa (Salario Base Cargo * % Ganancia)
+  // Ejemplo: 1750905 * 30% = 525272
+  const gananciaValor = salarioBaseCargo * (config.ganancia / 100);
+  
+  // 7. Subtotal (Costo Laboral Total + Ganancia + Auxilio)
+  // Ejemplo: 2596592 + 525272 + 249095 = 3370959
+  const subtotal = costoLaboralTotal + gananciaValor + auxilioTransporte;
+  
+  // 8. IVA (subtotal * % IVA)
   const ivaValor = subtotal * (config.iva / 100);
   
-  // 8. Total calculado = subtotal + IVA
-  const totalCalculado = subtotal + ivaValor;
-  
-  // 9. MULTIPLICADOR AL FINAL = totalCalculado × multiplicador del cargo
-  const totalMensual = totalCalculado * multiplicador;
+  // 9. Total mensual (Subtotal + IVA)
+  // Ejemplo: 3370959 * 1.19 = 4011441
+  const totalMensual = subtotal + ivaValor;
 
   return {
     cargo,
@@ -82,7 +100,13 @@ export function calcularSalarioMensual(
     salarioBaseCargo,
     auxilioTransporte,
     salarioBruto,
+    saludEmpleado,
+    pensionEmpleado,
+    fondoSolidaridad,
+    totalDeducciones,
+    salarioNeto,
     costoEmpresa,
+    costoLaboralTotal,
     gananciaValor,
     subtotal,
     ivaValor,
@@ -126,9 +150,10 @@ export function calcularSalarioPorHora(
  */
 export function calcularSalarioCompleto(
   config: SalarioConfig,
-  cargo: CargoTipo
+  cargo: CargoTipo,
+  customMultipliers?: Record<string, number>
 ): ConsultaSalario {
-  const mensual = calcularSalarioMensual(config, cargo);
+  const mensual = calcularSalarioMensual(config, cargo, customMultipliers);
   const porHora = calcularSalarioPorHora(config, mensual);
 
   return {
@@ -142,7 +167,8 @@ export function calcularSalarioCompleto(
  * Calcula todos los salarios para todos los cargos
  */
 export function calcularTodosLosSalarios(
-  config: SalarioConfig
+  config: SalarioConfig,
+  customMultipliers?: Record<string, number>
 ): ConsultaSalario[] {
   const cargos: CargoTipo[] = [
     "Auxiliar",
@@ -153,7 +179,7 @@ export function calcularTodosLosSalarios(
     "Master",
   ];
 
-  return cargos.map((cargo) => calcularSalarioCompleto(config, cargo));
+  return cargos.map((cargo) => calcularSalarioCompleto(config, cargo, customMultipliers));
 }
 
 /**
@@ -174,7 +200,8 @@ export function formatearMoneda(valor: number): string {
 export function calcularCostoProyecto(
   config: SalarioConfig,
   cargo: CargoTipo,
-  horas: number
+  horas: number,
+  customMultipliers?: Record<string, number>
 ): {
   cargo: CargoTipo;
   horas: number;
@@ -183,7 +210,7 @@ export function calcularCostoProyecto(
   iva: number;
   total: number;
 } {
-  const salario = calcularSalarioCompleto(config, cargo);
+  const salario = calcularSalarioCompleto(config, cargo, customMultipliers);
   const costoPorHora = salario.porHora.totalPorHora;
   const subtotal = costoPorHora * horas;
   const iva = subtotal * (config.iva / 100);
@@ -361,7 +388,8 @@ export function calcularCostoProyectoConExtras(
     dominicalesFestivos?: number;
     extrasDiurnasDominicales?: number;
     extrasNocturnasDominicales?: number;
-  }
+  },
+  customMultipliers?: Record<string, number>
 ): {
   cargo: CargoTipo;
   horasOrdinarias: number;
@@ -382,7 +410,7 @@ export function calcularCostoProyectoConExtras(
   iva: number;
   total: number;
 } {
-  const salario = calcularSalarioCompleto(config, cargo);
+  const salario = calcularSalarioCompleto(config, cargo, customMultipliers);
   const horasRecargos = calcularHorasExtrasYRecargos(salario.porHora);
   
   // Costo de horas ordinarias

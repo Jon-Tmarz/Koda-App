@@ -3,23 +3,16 @@
 // Multiplicadores por cargo
 export const CARGO_MULTIPLICADORES = {
   Auxiliar: 1,
-  Técnico: 2,
-  Tecnólogo: 3,
-  Profesional: 4,
-  Especialista: 5,
-  Master: 7,
+  Técnico: 1.75,
+  Tecnólogo: 2.5,
+  Profesional: 3.25,
+  Especialista: 4,
+  Master: 4.75,
 } as const;
 
 export type CargoTipo = keyof typeof CARGO_MULTIPLICADORES;
 
-export const CARGOS_LIST: CargoTipo[] = [
-  "Auxiliar",
-  "Técnico",
-  "Tecnólogo",
-  "Profesional",
-  "Especialista",
-  "Master",
-];
+export const CARGOS_LIST: CargoTipo[] = [ "Auxiliar", "Técnico", "Tecnólogo", "Profesional", "Especialista", "Master"];
 
 // Configuración base de salarios (se guarda en Firestore)
 export interface SalarioConfig {
@@ -27,10 +20,10 @@ export interface SalarioConfig {
   año: number;
   salarioBase: number; // SMMLV Colombia
   auxilioTransporte: number;
-  horasLegales: number; // Horas laborales mensuales (generalmente 192)
+  horasLegales: number; // Horas laborales mensuales
   iva: number; // Porcentaje de IVA (ej: 19)
   ganancia: number; // Porcentaje de ganancia empresa (ej: 30)
-  costoEmpleado: number; // Factor de costo empleado para la empresa (ej: 1.5 = 50% adicional)
+  costoEmpleado: number; // Porcentaje de carga prestacional (ej: 48.3)
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -38,20 +31,15 @@ export interface SalarioConfig {
 /**
  * Desglose de salario mensual por cargo
  * 
- * IMPORTANTE - LÓGICA DE MULTIPLICADOR:
- * El multiplicador se aplica AL FINAL sobre el total calculado.
- * Pasos:
- * 1. salarioBaseCargo = salarioBase (FIJO, no se multiplica)
- * 2. + auxilioTransporte
- * 3. = salarioBruto
- * 4. × costoEmpleado
- * 5. = costoEmpresa
- * 6. + ganancia%
- * 7. = subtotal
- * 8. + IVA%
- * 9. = totalCalculado
- * 10. × multiplicador (1x, 2x, 3x, 4x, 5x, 7x) ← AQUÍ
- * 11. = totalMensual
+ * NUEVA LÓGICA DE CÁLCULO (2026):
+ * 1. salarioBaseCargo = config.salarioBase * multiplicador
+ * 2. costoAdicional = salarioBaseCargo * (config.costoEmpleado / 100)
+ * 3. totalCostoEmpresa = salarioBaseCargo + costoAdicional
+ * 4. gananciaValor = salarioBaseCargo * (config.ganancia / 100)
+ * 5. subtotal = totalCostoEmpresa + gananciaValor + (auxilioTransporte si aplica)
+ * 6. totalMensual = subtotal * (1 + config.iva / 100)
+ * 
+ * * Auxilio de transporte aplica si salarioBaseCargo <= config.salarioBase * 2
  */
 export interface SalarioMensual {
   cargo: CargoTipo;
@@ -59,11 +47,20 @@ export interface SalarioMensual {
   salarioBaseCargo: number; // Salario base FIJO (NO multiplicado)
   auxilioTransporte: number; // Auxilio de transporte (si aplica)
   salarioBruto: number; // salarioBaseCargo + auxilioTransporte
-  costoEmpresa: number; // salarioBruto × costoEmpleado
-  gananciaValor: number; // costoEmpresa × ganancia%
-  subtotal: number; // costoEmpresa + gananciaValor
+  
+  // Deducciones del Empleado (Colombia 2026)
+  saludEmpleado: number; // 4% del salarioBaseCargo
+  pensionEmpleado: number; // 4% del salarioBaseCargo
+  fondoSolidaridad: number; // 1-2% si salarioBaseCargo > 4 SMMLV
+  totalDeducciones: number;
+  salarioNeto: number; // salarioBaseCargo - totalDeducciones
+  
+  costoEmpresa: number; // salarioBaseCargo × 48.3% (Carga prestacional)
+  costoLaboralTotal: number; // salarioBaseCargo + costoEmpresa
+  gananciaValor: number; // salarioBaseCargo × ganancia%
+  subtotal: number; // costoLaboralTotal + gananciaValor + auxilioTransporte
   ivaValor: number; // subtotal × iva%
-  totalMensual: number; // (subtotal + ivaValor) × multiplicador ← INCLUYE multiplicador
+  totalMensual: number; // (subtotal + ivaValor) ← INCLUYE todo
 }
 
 /**
@@ -89,15 +86,15 @@ export interface ConsultaSalario {
   porHora: SalarioPorHora;
 }
 
-// Valores por defecto para Colombia 2025
+// Valores por defecto para Colombia 2026
 export const DEFAULT_SALARIO_CONFIG: Omit<SalarioConfig, "id" | "createdAt" | "updatedAt"> = {
-  año: 2025,
-  salarioBase: 1423500, // SMMLV Colombia 2025 aproximado
-  auxilioTransporte: 200000, // Auxilio de transporte 2025 aproximado
-  horasLegales: 192, // 8 horas * 24 días laborales
+  año: 2026,
+  salarioBase: 1750905, // SMMLV Colombia 2026
+  auxilioTransporte: 249095, // Auxilio de transporte 2026
+  horasLegales: 182, // Horas laborales mensuales 182
   iva: 19, // IVA Colombia
   ganancia: 30, // 30% de ganancia
-  costoEmpleado: 1.5, // Factor de costo (prestaciones, seguridad social, etc.)
+  costoEmpleado: 48.3, // 48.3% de carga prestacional adicional
 };
 
 // Recargos según normativa laboral colombiana
