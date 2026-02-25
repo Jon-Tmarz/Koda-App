@@ -1,260 +1,234 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Timestamp } from "firebase/firestore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { QuoteFormDialog } from "@/components/quotes/quote-form-dialog";
-import { DeleteQuoteDialog } from "@/components/quotes/delete-quote-dialog";
 import { QuotesTable } from "@/components/quotes/quotes-table";
-import { cotizacionesService, type Cotizacion, type CotizacionFormData } from "@/lib/cotizaciones-service";
+import { QuoteFormDialog, type QuoteFormData } from "@/components/quotes/quote-form-dialog";
+import { DeleteQuoteDialog } from "@/components/quotes/delete-quote-dialog";
+import { quotesService, type Quote } from "@/lib/quotes-service";
+import { leadsService } from "@/lib/leads-service";
+import { projectsService } from "@/lib/projects-service";
+import { useToast } from "@/hooks/use-toast";
+import { Plus } from "lucide-react";
+import type { Lead } from "@/types";
+
+const BLANK_QUOTE: QuoteFormData = {
+  numero: "",
+  cliente: "",
+  items: [{ descripcion: "", horas: 1, costoPorHora: 0, subtotal: 0 }],
+  subtotal: 0,
+  iva: 0,
+  total: 0,
+  estado: "borrador",
+};
 
 export default function QuotesPage() {
-  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [initialFormData, setInitialFormData] = useState<QuoteFormData>(BLANK_QUOTE);
+  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
-  
-  const [formData, setFormData] = useState<CotizacionFormData>({
-    numero: "",
-    cliente: "",
-    items: [{ descripcion: "", horas: 0, costoPorHora: 0, subtotal: 0 }],
-    subtotal: 0,
-    iva: 0,
-    total: 0,
-    estado: "borrador",
-    pdfUrl: "",
-  });
 
-  const loadCotizaciones = async () => {
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const loadAllData = async () => {
     try {
       setLoading(true);
-      const data = await cotizacionesService.getAll();
-      setCotizaciones(data);
+      const [quotesData, leadsData] = await Promise.all([
+        quotesService.getAll(),
+        leadsService.getAll(),
+      ]);
+      setQuotes(quotesData);
+      setLeads(leadsData);
     } catch (error) {
-      console.error("Error cargando cotizaciones:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las cotizaciones",
-        variant: "destructive",
-      });
+      console.error("Error cargando datos:", error);
+      toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadCotizaciones();
+    loadAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateQuote = async (data: CotizacionFormData) => {
+  const handleCreate = async () => {
     try {
-      setSaving(true);
-      const numero = data.numero || cotizacionesService.generarNumero(cotizaciones.length);
-      await cotizacionesService.create({ ...data, numero, fecha: Timestamp.now() });
-      
-      toast({
-        title: "Éxito",
-        description: "Cotización creada correctamente",
-      });
-      
-      resetForm();
-      loadCotizaciones();
+        const nextNumber = await quotesService.getNextQuoteNumber();
+        setInitialFormData({ ...BLANK_QUOTE, numero: nextNumber });
+        setEditingId(null);
+        setDialogOpen(true);
     } catch (error) {
-      console.error("Error creando cotización:", error);
+        console.error("Error generando número de cotización:", error);
+        toast({ title: "Error", description: "No se pudo generar el número de cotización.", variant: "destructive" });
+    }
+  };
+
+  const handleEdit = async (id: string) => {
+    const quoteToEdit = await quotesService.getById(id);
+    if (quoteToEdit) {
+      setInitialFormData({
+        numero: quoteToEdit.numero,
+        cliente: quoteToEdit.clienteId,
+        items: quoteToEdit.items,
+        subtotal: quoteToEdit.subtotal,
+        iva: quoteToEdit.iva,
+        total: quoteToEdit.total,
+        estado: quoteToEdit.estado,
+        pdfUrl: quoteToEdit.pdfUrl,
+      });
+      setEditingId(id);
+      setDialogOpen(true);
+    }
+  };
+
+  const handleSave = async (data: QuoteFormData): Promise<void> => {
+    // Validation is now handled by Zod in the form component.
+    // We can add extra server-side-like validation here if needed.
+
+    const selectedLead = leads.find(lead => lead.id === data.cliente);
+    if (!selectedLead) {
+      toast({ title: "Error", description: "El cliente seleccionado no es válido.", variant: "destructive" });
+      throw new Error("Cliente no válido");
+    }
+
+    const { cliente, ...restOfData } = data;
+    const submitData = {
+      ...restOfData,
+      clienteId: cliente,
+      clienteNombre: selectedLead.empresa || selectedLead.contacto,
+    };
+
+    try {
+      if (editingId) {
+        await quotesService.update(editingId, submitData);
+        toast({ title: "Éxito", description: "Cotización actualizada correctamente." });
+      } else {
+        await quotesService.create(submitData);
+        toast({ title: "Éxito", description: "Cotización creada correctamente." });
+      }
+      setDialogOpen(false);
+      await loadAllData();
+    } catch (error) {
+      console.error("Error guardando cotización:", error);
+      toast({ title: "Error", description: "No se pudo guardar la cotización.", variant: "destructive" });
+      throw error; // Re-throw to be caught by form dialog
+    }
+  };
+
+  const handleStatusChange = async (id: string, estado: Quote["estado"], otro?: string) => {
+    try {
+      const updateData: Partial<Omit<Quote, "id" | "fecha">> = { estado };
+      if (estado === "aprobada") {
+        if (otro) {
+          updateData.aprobacionNotas = otro;
+        }
+        const quoteToApprove = quotes.find(q => q.id === id);
+        if (quoteToApprove) {
+          await projectsService.createFromQuote(quoteToApprove);
+          toast({
+            title: "Proyecto Creado",
+            description: `El proyecto para la cotización ${quoteToApprove.numero} ha sido iniciado.`,
+          });
+        }
+      }
+
+      await quotesService.update(id, updateData);
+      toast({
+        title: "Estado Actualizado",
+        description: `La cotización ha sido actualizada a "${estado}".`,
+      });
+      await loadAllData();
+    } catch (error) {
+      console.error("Error actualizando estado:", error);
       toast({
         title: "Error",
-        description: "No se pudo crear la cotización",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUpdate = async (data: CotizacionFormData) => {
-    if (!editingId) return;
-    try {
-      setSaving(true);
-      await cotizacionesService.update(editingId, data);
-      
-      toast({
-        title: "Éxito",
-        description: "Cotización actualizada correctamente",
-      });
-      
-      resetForm();
-      loadCotizaciones();
-    } catch (error) {
-      console.error("Error actualizando cotización:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar la cotización",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSave = (data: CotizacionFormData) => {
-    // Validaciones
-    if (!data.numero) {
-      toast({
-        title: "Error de validación",
-        description: "El número de cotización es requerido",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const hasInvalidItems = data.items.some(
-      item => !item.descripcion || item.horas <= 0 || item.costoPorHora <= 0
-    );
-    
-    if (hasInvalidItems) {
-      toast({
-        title: "Error de validación",
-        description: "Todos los items deben tener descripción, horas y costo válidos",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (editingId) {
-      handleUpdate(data);
-    } else {
-      handleCreateQuote(data);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!deletingId) return;
-    try {
-      await cotizacionesService.delete(deletingId);
-      
-      toast({
-        title: "Éxito",
-        description: "Cotización eliminada correctamente",
-      });
-      
-      setDeleteDialogOpen(false);
-      setDeletingId(null);
-      loadCotizaciones();
-    } catch (error) {
-      console.error("Error eliminando cotización:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar la cotización",
+        description: "No se pudo actualizar el estado de la cotización.",
         variant: "destructive",
       });
     }
   };
 
-  const handleEdit = (id: string) => {
-    const cotizacion = cotizaciones.find((c) => c.id === id);
-    if (!cotizacion) return;
-
-    setEditingId(id);
-    setFormData({
-      numero: cotizacion.numero,
-      cliente: "",
-      items: cotizacion.items || [{ descripcion: "", horas: 0, costoPorHora: 0, subtotal: 0 }],
-      subtotal: cotizacion.subtotal,
-      iva: cotizacion.iva,
-      total: cotizacion.total,
-      estado: cotizacion.estado,
-      pdfUrl: "",
-    });
-    setDialogOpen(true);
-  };
-
-  const handleDeleteDialog = (id: string) => {
+  const handleDeleteRequest = (id: string) => {
     setDeletingId(id);
     setDeleteDialogOpen(true);
   };
 
-  const handleCreateNew = async () => {
-    resetForm();
-    const numero = cotizacionesService.generarNumero(cotizaciones.length);
-    setFormData((prev) => ({ ...prev, numero }));
-    setDialogOpen(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      numero: "",
-      cliente: "",
-      items: [{ descripcion: "", horas: 0, costoPorHora: 0, subtotal: 0 }],
-      subtotal: 0,
-      iva: 0,
-      total: 0,
-      estado: "borrador",
-      pdfUrl: "",
-    });
-    setEditingId(null);
-    setDialogOpen(false);
+  const handleDeleteConfirm = async () => {
+    if (!deletingId) return;
+    try {
+      await quotesService.delete(deletingId);
+      toast({ title: "Éxito", description: "Cotización eliminada correctamente." });
+      setDeleteDialogOpen(false);
+      setDeletingId(null);
+      await loadAllData();
+    } catch (error) {
+      console.error("Error eliminando cotización:", error);
+      toast({ title: "Error", description: "No se pudo eliminar la cotización.", variant: "destructive" });
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Cotizaciones</h2>
-          <p className="text-muted-foreground">
-            Historial de cotizaciones generadas
-          </p>
-        </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Cotización
-        </Button>
-      </div>
-
-      <Card className="border-border/40">
-        <CardHeader>
-          <CardTitle>Lista de Cotizaciones</CardTitle>
-          <CardDescription>
-            {cotizaciones.length} cotización(es) registrada(s)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <QuotesTable
-            cotizaciones={cotizaciones}
-            loading={loading}
-            onEdit={handleEdit}
-            onDelete={handleDeleteDialog}
-            onCreate={handleCreateNew}
+      <PageHeader
+        title="Gestión de Cotizaciones"
+        description="Crea y administra las cotizaciones para tus clientes."
+      >
+        {isClient && (
+          <QuoteFormDialog
+            editingId={null}
+            initialData={initialFormData}
+            leads={leads}
+            onSave={handleSave}
+            trigger={
+              <Button onClick={handleCreate}>
+                <Plus className="mr-2 h-4 w-4" /> Nueva Cotización
+              </Button>
+            }
           />
-        </CardContent>
-      </Card>
+        )}
+      </PageHeader>
 
-      <QuoteFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editingId={editingId}
-        initialData={formData}
-        onSave={handleSave}
-        onCancel={resetForm}
-        saving={saving}
+      <QuotesTable
+        quotes={quotes}
+        loading={loading}
+        onEdit={handleEdit}
+        onDelete={handleDeleteRequest}
+        onCreate={handleCreate}
+        onStatusChange={handleStatusChange}
       />
 
-      <DeleteQuoteDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        onConfirm={handleDelete}
-        onCancel={() => {
-          setDeleteDialogOpen(false);
-          setDeletingId(null);
-        }}
-      />
+      {isClient && (
+        <QuoteFormDialog
+          editingId={editingId}
+          initialData={initialFormData}
+          leads={leads}
+          onSave={handleSave}
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditingId(null);
+          }}
+        />
+      )}
+
+      {isClient && (
+        <DeleteQuoteDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }

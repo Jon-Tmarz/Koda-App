@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { ServiceFormDialog } from "@/components/services/service-form-dialog";
 import { ServicesTable } from "@/components/services/services-table";
 import { serviciosService, type ServicioFormData } from "@/lib/servicios-service";
@@ -12,6 +13,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<Servicio | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Cargar servicios desde Firestore
   const loadServicios = async () => {
@@ -70,25 +76,22 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Gestión de Servicios
-          </h2>
-          <p className="text-muted-foreground">
-            Administra los servicios de tu plataforma
-          </p>
-        </div>
-        <ServiceFormDialog
-          editingService={editingService}
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) setEditingService(null);
-          }}
-          onSubmit={handleSubmit}
-        />
-      </div>
+      <PageHeader
+        title="Gestión de Servicios"
+        description="Administra los servicios de tu plataforma"
+      >
+        {isClient && (
+          <ServiceFormDialog
+            editingService={editingService}
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setEditingService(null);
+            }}
+            onSubmit={handleSubmit}
+          />
+        )}
+      </PageHeader>
 
       <Card className="border-border/40">
         <CardHeader>

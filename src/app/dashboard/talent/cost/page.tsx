@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Pencil, Search, Calculator, Users, Loader2 } from "lucide-react";
+import { Pencil, Search, Calculator, Users } from "lucide-react";
 import { useSalarios } from "@/hooks/use-salarios";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TalentCostPage() {
   const { config, multipliers, loading } = useSalarios();
@@ -17,77 +18,73 @@ export default function TalentCostPage() {
     "= Total Mensual / Horas = Valor Hora"
   ]
 
+  const actionCards = [
+    {
+      icon: Pencil,
+      title: "Edición Salario",
+      description: "Configura el salario base y parámetros",
+      content: "Modifica el salario mínimo, auxilio de transporte, porcentajes de IVA, ganancia y costos adicionales para calcular cotizaciones.",
+      buttonText: "Editar Configuración",
+      buttonIcon: Pencil,
+      href: "/dashboard/talent/edit",
+    },
+    {
+      icon: Search,
+      title: "Consultar Salario",
+      description: "Consulta salarios por cargo",
+      content: "Visualiza el desglose completo de salarios mensuales y por hora según el nivel de experiencia del cargo.",
+      buttonText: "Consultar Salarios",
+      buttonIcon: Search,
+      href: "/dashboard/talent/query",
+    },
+    {
+      icon: Users,
+      title: "Colaboradores",
+      description: "Gestiona tu equipo de trabajo",
+      content: "Administra la lista de colaboradores activos, sus cargos, salarios y detalles de contacto.",
+      buttonText: "Ver Talentos",
+      buttonIcon: Users,
+      href: "/dashboard/talent/active",
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Coste del Talento</h2>
-        <p className="text-muted-foreground">
-          Gestión de costos de talento humano para cotizaciones
-        </p>
-      </div>
+      <PageHeader
+        title="Talento"
+        description="Gestión de costos de talento humano para cotizaciones y listado de colaboradores."
+      />
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Botón Edición Salario */}
-        <Card className="border-border/40 hover:border-primary/50 transition-colors">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Pencil className="h-6 w-6 text-primary" />
+      {/* Tarjetas de acción */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {actionCards.map((card, index) => (
+          <Card key={index} className="border-border/40 hover:border-primary/50 transition-colors">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <card.icon className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>{card.title}</CardTitle>
+                  <CardDescription>{card.description}</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Edición Salario</CardTitle>
-                <CardDescription>
-                  Configura el salario base y parámetros
-                </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                {card.content}
+              </p>
+              <div className="flex justify-center">
+                <Link href={card.href} className="w-full sm:w-auto sm:min-w-[200px]">
+                  <Button className="w-full border-solid border-2 border-primary hover:bg-blue-100 hover:dark:text-blue-900">
+                    <card.buttonIcon className="mr-2 h-4 w-4" />
+                    {card.buttonText}
+                  </Button>
+                </Link>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Modifica el salario mínimo, auxilio de transporte, porcentajes de
-              IVA, ganancia y costos adicionales para calcular cotizaciones.
-            </p>
-            <div className="flex justify-center">
-              <Link href="/dashboard/talent/edit" className="w-full sm:w-auto sm:min-w-[200px]">
-                <Button className="w-full border-solid border-2 border-primary hover:bg-blue-100 hover:dark:text-blue-900">
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar Configuración
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Botón Consultar Salario */}
-        <Card className="border-border/40 hover:border-primary/50 transition-colors">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                <Search className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Consultar Salario</CardTitle>
-                <CardDescription>
-                  Consulta salarios por cargo
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Visualiza el desglose completo de salarios mensuales y por hora
-              según el nivel de experiencia del cargo.
-            </p>
-            <div className="flex justify-center">
-              <Link href="/dashboard/talent/query" className="w-full sm:w-auto sm:min-w-[200px]">
-                <Button className="w-full border-solid border-2 border-primary hover:bg-blue-100 hover:dark:text-blue-900">
-                  <Search className="mr-2 h-4 w-4" />
-                  Consultar Salarios
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Información adicional */}

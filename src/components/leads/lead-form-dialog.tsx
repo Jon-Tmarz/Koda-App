@@ -1,20 +1,37 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
-import type { Lead } from "@/types";
-import { createLead, updateLead } from "@/lib/firestore-services";
+import { Plus, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import type { Lead, LeadEstado } from "@/types";
+
+const ESTADOS_LEAD: LeadEstado[] = ["nuevo", "contactado", "negociacion", "cerrado", "perdido"];
+
+const formSchema = z.object({
+  empresa: z.string().min(1, { message: "El nombre de la empresa es requerido." }),
+  contacto: z.string().min(1, { message: "El nombre del contacto es requerido." }),
+  email: z.string().email({ message: "Por favor, introduce un email válido." }).min(1, { message: "El email es requerido." }),
+  telefono: z.string().optional(),
+  estado: z.enum(ESTADOS_LEAD),
+  notas: z.string().optional(),
+});
+
+export type LeadFormData = z.infer<typeof formSchema>;
 
 interface LeadFormDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  lead?: Lead | null;
-  onSuccess: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  editingLead?: Lead | null;
+  onSubmit: (data: LeadFormData, editingId?: string) => Promise<void>;
+  trigger?: React.ReactNode;
 }
 
 const estadosOptions = [
@@ -23,45 +40,48 @@ const estadosOptions = [
   { value: "negociacion", label: "Negociación" },
   { value: "cerrado", label: "Cerrado" },
   { value: "perdido", label: "Perdido" },
-];
+] as const;
 
 export function LeadFormDialog({
-  open,
-  onOpenChange,
-  lead,
-  onSuccess,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  editingLead,
+  onSubmit,
+  trigger,
 }: LeadFormDialogProps) {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<{
-    empresa: string;
-    contacto: string;
-    email: string;
-    telefono: string;
-    estado: "nuevo" | "contactado" | "negociacion" | "cerrado" | "perdido";
-    notas: string;
-  }>({
-    empresa: "",
-    contacto: "",
-    email: "",
-    telefono: "",
-    estado: "nuevo",
-    notas: "",
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isControlled = controlledOpen !== undefined;
+  const dialogOpen = isControlled ? controlledOpen : internalOpen;
+  const setDialogOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+
+  const form = useForm<LeadFormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      empresa: "",
+      contacto: "",
+      email: "",
+      telefono: "",
+      estado: "nuevo",
+      notas: "",
+    },
   });
 
-  // Resetear o cargar datos cuando cambia el lead o el dialog se abre
+  const { formState: { isSubmitting, errors } } = form;
+
   useEffect(() => {
-    if (open) {
-      if (lead) {
-        setFormData({
-          empresa: lead.empresa || "",
-          contacto: lead.contacto || "",
-          email: lead.email || "",
-          telefono: lead.telefono || "",
-          estado: lead.estado || "nuevo",
-          notas: lead.notas || "",
+    if (dialogOpen) {
+      if (editingLead) {
+        form.reset({
+          empresa: editingLead.empresa || "",
+          contacto: editingLead.contacto || "",
+          email: editingLead.email || "",
+          telefono: editingLead.telefono || "",
+          estado: editingLead.estado || "nuevo",
+          notas: editingLead.notas || "",
         });
       } else {
-        setFormData({
+        form.reset({
           empresa: "",
           contacto: "",
           email: "",
@@ -71,44 +91,41 @@ export function LeadFormDialog({
         });
       }
     }
-  }, [lead, open]);
+  }, [editingLead, dialogOpen, form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  async function onValidSubmit(data: LeadFormData) {
     try {
-      if (lead?.id) {
-        await updateLead(lead.id, formData);
-      } else {
-        await createLead(formData);
-      }
-
-      onSuccess();
-      onOpenChange(false);
+      await onSubmit(data, editingLead?.id);
+      setDialogOpen(false);
     } catch (error) {
       console.error("Error guardando lead:", error);
-      alert(error instanceof Error ? error.message : "Error al guardar el lead");
-    } finally {
-      setLoading(false);
     }
-  };
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] my-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Lead
+          </Button>
+        </DialogTrigger>
+      )}
+      <DialogContent className="sm:max-w-[500px] my-4 max-h-[calc(100vh-4rem)] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>
-              {lead ? "Editar Lead" : "Nuevo Lead"}
+              <span className="text-black">{editingLead ? "Editar Lead" : "Nuevo Lead"}</span>
             </DialogTitle>
             <DialogDescription>
-              {lead
+              {editingLead
                 ? "Actualiza la información del lead"
                 : "Agrega un nuevo lead al sistema"}
             </DialogDescription>
           </DialogHeader>
-
+        <form onSubmit={form.handleSubmit(onValidSubmit)}>
           <div className="grid gap-4 py-4">
             {/* Empresa */}
             <div className="grid gap-2">
@@ -117,13 +134,11 @@ export function LeadFormDialog({
               </Label>
               <Input
                 id="empresa"
-                value={formData.empresa}
-                onChange={(e) =>
-                  setFormData({ ...formData, empresa: e.target.value })
-                }
+                className="text-black"
                 placeholder="Nombre de la empresa"
-                required
+                {...form.register("empresa")}
               />
+              {errors.empresa && <p className="text-sm text-red-500">{errors.empresa.message}</p>}
             </div>
 
             {/* Contacto */}
@@ -133,13 +148,11 @@ export function LeadFormDialog({
               </Label>
               <Input
                 id="contacto"
-                value={formData.contacto}
-                onChange={(e) =>
-                  setFormData({ ...formData, contacto: e.target.value })
-                }
+                className="text-black"
                 placeholder="Nombre del contacto"
-                required
+                {...form.register("contacto")}
               />
+              {errors.contacto && <p className="text-sm text-red-500">{errors.contacto.message}</p>}
             </div>
 
             {/* Email */}
@@ -149,14 +162,12 @@ export function LeadFormDialog({
               </Label>
               <Input
                 id="email"
+                className="text-black"
                 type="email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
                 placeholder="email@empresa.com"
-                required
+                {...form.register("email")}
               />
+              {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
             </div>
 
             {/* Teléfono */}
@@ -164,50 +175,49 @@ export function LeadFormDialog({
               <Label htmlFor="telefono">Teléfono</Label>
               <Input
                 id="telefono"
+                className="text-black"
                 type="tel"
-                value={formData.telefono}
-                onChange={(e) =>
-                  setFormData({ ...formData, telefono: e.target.value })
-                }
                 placeholder="+57 300 123 4567"
+                {...form.register("telefono")}
               />
+              {errors.telefono && <p className="text-sm text-red-500">{errors.telefono.message}</p>}
             </div>
 
             {/* Estado */}
             <div className="grid gap-2">
               <Label htmlFor="estado">Estado</Label>
-              <Select
-                value={formData.estado}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, estado: value })
-                }
-              >
-                <SelectTrigger className="text-gray-100">
-                  <SelectValue placeholder="Selecciona un estado" className="text-gray-100" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900">
-                  {estadosOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value} className="text-gray-100">
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="estado"
+                control={form.control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="text-black">
+                      <SelectValue placeholder="Selecciona un estado" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {estadosOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} className="text-black">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.estado && <p className="text-sm text-red-500">{errors.estado.message}</p>}
             </div>
 
             {/* Notas */}
             <div className="grid gap-2">
               <Label htmlFor="notas">Notas</Label>
-              <textarea
+              <Textarea
                 id="notas"
-                value={formData.notas}
-                onChange={(e) =>
-                  setFormData({ ...formData, notas: e.target.value })
-                }
                 placeholder="Notas adicionales sobre el lead..."
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-gray-100"
+                className="text-black"
                 rows={3}
+                {...form.register("notas")}
               />
+              {errors.notas && <p className="text-sm text-red-500">{errors.notas.message}</p>}
             </div>
           </div>
 
@@ -215,14 +225,20 @@ export function LeadFormDialog({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
+              onClick={() => setDialogOpen(false)}
+              disabled={isSubmitting}
             >
               Cancelar
             </Button>
-            <Button type="submit" variant="outline" disabled={loading} className="text-gray-100">
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {lead ? "Actualizar" : "Crear"}
+            <Button type="submit" variant="outline" disabled={isSubmitting} className="text-black">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {editingLead ? "Actualizando..." : "Creando..."}
+                </>
+              ) : (
+                editingLead ? "Actualizar" : "Crear"
+              )}
             </Button>
           </DialogFooter>
         </form>

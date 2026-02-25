@@ -1,16 +1,6 @@
 import { db } from "./firebase";
 import { collection, getDocs, getDoc, setDoc, updateDoc, doc, Timestamp, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
-import type { SalarioConfig, CargoTipo } from "@/types/salarios";
-
-export interface Cargo {
-  id?: string;
-  nombre: CargoTipo;
-  multiplicador: number;
-  descripcion?: string;
-  activo: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+import type { SalarioConfig, Cargo, CargoTipo } from "@/types";
 
 const COLLECTIONS = {
   SALARIOS: "salarios",

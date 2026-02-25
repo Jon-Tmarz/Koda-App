@@ -3,33 +3,20 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  LayoutDashboard,
-  Settings,
-  Menu,
-  X,
-  FileText,
-  Users,
-  UserStar,
-  Briefcase,
-  UserCog,
-  LogOut,
-  Wrench,
-} from "lucide-react";
+import { Home, LayoutDashboard, Settings, Menu, X, FileText, Contact, Briefcase, UserCog, LogOut, Wrench, CalendarArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
 const navigation = [
   { name: "Home", href: "/dashboard", icon: Home },
-  { name: "Dashboard", href: "/dashboard/overview", icon: LayoutDashboard },
-  { name: "Services", href: "/dashboard/services", icon: Briefcase },
-  { name: "Tools", href: "/dashboard/tools", icon: Wrench },
-  { name: "Talent", href: "/dashboard/talent/active", icon: Users },
-  { name: "Talent Cost", href: "/dashboard/talent/cost", icon: UserCog },
-  { name: "Leads", href: "/dashboard/leads", icon: UserStar },
-  { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
+  // { name: "Dashboard", href: "/dashboard/overview", icon: LayoutDashboard },
+  { name: "Leads", href: "/dashboard/leads", icon: Contact },
+  { name: "Cotizaciones", href: "/dashboard/quotes", icon: FileText },
+  { name: "Projectos", href: "/dashboard/projects/", icon: CalendarArrowUp },
+  { name: "Servicios", href: "/dashboard/services", icon: Briefcase },
+  { name: "Herramientas", href: "/dashboard/tools", icon: Wrench },
+  { name: "Talento", href: "/dashboard/talent/cost", icon: UserCog },
   { name: "Setup", href: "/dashboard/setup", icon: Settings },
 ];
 

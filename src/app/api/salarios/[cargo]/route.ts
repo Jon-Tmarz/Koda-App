@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { 
-  calcularSalarioCompleto, 
-  calcularHorasExtrasYRecargos 
-} from "@/lib/salarios";
-import { CARGO_MULTIPLICADORES } from "@/types/salarios";
+import { calcularSalarioCompleto, calcularHorasExtrasYRecargos, type SalarioConfig } from "@/lib/salarios";
 import type { CargoTipo } from "@/types/salarios";
 import { getSalarioConfig } from "@/lib/firestore-services";
 import { getLatestExchangeRate } from "@/lib/divisas-service";
+
 
 /**
  * Redondea un número a 2 decimales
@@ -15,15 +12,11 @@ const round2 = (num: number): number => Math.round(num * 100) / 100;
 
 /**
  * Convierte COP a USD usando el último exchange rate de Firestore
- */
-const copToUsd = (cop: number, rate: number): number => round2(cop / rate);
-
-/**
  * Crea un objeto con valores en COP y USD
  */
 const dualCurrency = (cop: number, rate: number) => ({
   cop: round2(cop),
-  usd: copToUsd(cop, rate)
+  usd: round2(cop / rate)
 });
 
 /**
@@ -42,11 +35,10 @@ export async function GET(
     
     // Obtener multiplicadores de Firestore
     const { getCargos } = await import("@/lib/firestore-services");
-    const cargosDb = await getCargos();
-    const multipliers: Record<string, number> = { ...CARGO_MULTIPLICADORES };
-    
+    const cargosDb = await getCargos();    
+    const multipliers: Record<string, number> = {};
     cargosDb.forEach(c => {
-      multipliers[c.nombre] = c.multiplicador;
+        multipliers[c.nombre] = c.multiplicador;
     });
 
     // Validar que el cargo existe
@@ -79,18 +71,21 @@ export async function GET(
     }
 
     // Obtener configuración desde Firestore
-    const config = await getSalarioConfig(año);
+    let config = await getSalarioConfig(año);
+    let usingFallbackConfig = false;
     
-    // Si no existe configuración para ese año, retornar error
+    // Si no existe configuración para ese año, usar una de respaldo para evitar el error 404
     if (!config) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Configuración no encontrada",
-          message: `No existe configuración de salarios para el año ${año}`,
-        },
-        { status: 404 }
-      );
+      usingFallbackConfig = true;
+      config = {
+        año: año,
+        salarioBase: 1300000, // SMMLV 2024 como fallback razonable
+        auxilioTransporte: 162000, // Aux. Transporte 2024
+        horasLegales: 192,
+        costoEmpleado: 48.3, // Carga prestacional aproximada
+        ganancia: 30,
+        iva: 19,
+      } as SalarioConfig;
     }
 
     // Obtener exchange rate para conversión USD
@@ -107,44 +102,55 @@ export async function GET(
         cargo,
         multiplicador: salarioCompleto.mensual.multiplicador,
         horasLegales: config.horasLegales,
+        año,
+        configStatus: {
+          isFallback: usingFallbackConfig,
+          message: usingFallbackConfig 
+            ? `ADVERTENCIA: No se encontró configuración para ${año}. Usando valores de respaldo.` 
+            : `Configuración para ${año} cargada correctamente.`
+        },
         currentRate: {
           divisa: "USD/COP",
-          currentRate: exchangeRate?.rate || rate,
-          timestamp: exchangeRate?.timestamp,
+          rate: exchangeRate?.rate || rate,
+          timestamp: exchangeRate?.timestamp || null,
           fallback: !exchangeRate,
         },
-        desglose: {
-          salarioBasePorHora: dualCurrency(salarioCompleto.porHora.salarioHoraBase, rate),
-          costoEmpresaPorHora: dualCurrency(salarioCompleto.porHora.costoHoraEmpresa, rate),
-          gananciaPorHora: dualCurrency(salarioCompleto.porHora.gananciaHora, rate),
-          ivaPorHora: dualCurrency(salarioCompleto.porHora.ivaHora, rate),
-          totalPorHora: dualCurrency(salarioCompleto.porHora.totalPorHora, rate),
+        desglosePorHora: {
+          salarioBase: dualCurrency(salarioCompleto.porHora.salarioHoraBase, rate),
+          costoEmpresa: dualCurrency(salarioCompleto.porHora.costoHoraEmpresa, rate),
+          ganancia: dualCurrency(salarioCompleto.porHora.gananciaHora, rate),
+          iva: dualCurrency(salarioCompleto.porHora.ivaHora, rate),
+          auxTransporte: dualCurrency(salarioCompleto.porHora.auxTransporteHora || 0, rate),
+          total: dualCurrency(salarioCompleto.porHora.totalPorHora, rate),
         },
-        tiposDeHora: {
-          horaOrdinaria: {
+        'extras&recargosHora': {
+          ordinaria: {
             recargo: 0,
-            recargoTexto: "-",
             valorPorHora: dualCurrency(recargos.valorHoraBase, rate),
           },
-          horaExtraDiurna: {
+          extraDiurna: {
             recargo: recargos.horaExtraDiurna.recargo,
-            recargoTexto: `+${recargos.horaExtraDiurna.recargo * 100}%`,
             valorPorHora: dualCurrency(recargos.horaExtraDiurna.valorPorHora, rate),
           },
           recargoNocturno: {
             recargo: recargos.recargoNocturno.recargo,
-            recargoTexto: `+${recargos.recargoNocturno.recargo * 100}%`,
             valorPorHora: dualCurrency(recargos.recargoNocturno.valorPorHora, rate),
           },
-          horaExtraNocturna: {
+          extraNocturna: {
             recargo: recargos.horaExtraNocturna.recargo,
-            recargoTexto: `+${recargos.horaExtraNocturna.recargo * 100}%`,
             valorPorHora: dualCurrency(recargos.horaExtraNocturna.valorPorHora, rate),
           },
           dominicalFestivo: {
             recargo: recargos.dominicalFestivo.recargo,
-            recargoTexto: `+${recargos.dominicalFestivo.recargo * 100}%`,
             valorPorHora: dualCurrency(recargos.dominicalFestivo.valorPorHora, rate),
+          },
+          extraDiurnaFestiva: {
+            recargo: recargos.extraDiurnaDominical.recargo,
+            valorPorHora: dualCurrency(recargos.extraDiurnaDominical.valorPorHora, rate),
+          },
+          extraNocturnaFestiva: {
+            recargo: recargos.extraNocturnaDominical.recargo,
+            valorPorHora: dualCurrency(recargos.extraNocturnaDominical.valorPorHora, rate),
           },
         },
       },

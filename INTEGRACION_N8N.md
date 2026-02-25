@@ -86,7 +86,7 @@ GET /api/leads
   "data": [
     {
       "id": "abc123",
-      "nombre": "Juan Pérez",
+      "contacto": "Juan Pérez",
       "empresa": "Tech Corp",
       "email": "juan@techcorp.com",
       "telefono": "+57 300 123 4567",
@@ -110,7 +110,7 @@ POST /api/leads
 Content-Type: application/json
 
 {
-  "nombre": "María López",
+  "contacto": "María López",
   "empresa": "Digital Solutions",
   "email": "maria@digital.com",
   "telefono": "+57 301 234 5678",
@@ -269,7 +269,7 @@ Webhook Trigger → HTTP Request (POST /api/leads) → Email de confirmación
 - Body:
 ```json
 {
-  "nombre": "{{ $json.nombre }}",
+  "contacto": "{{ $json.contacto }}",
   "empresa": "{{ $json.empresa }}",
   "email": "{{ $json.email }}",
   "telefono": "{{ $json.telefono }}",

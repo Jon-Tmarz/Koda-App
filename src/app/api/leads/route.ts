@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLeads, createLead } from "@/lib/firestore-services";
+import { leadsService } from "@/lib/leads-service";
 import { requireAPIKey } from "@/lib/api-auth";
 
 /**
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const leads = await getLeads();
+    const leads = await leadsService.getAll();
     
     return NextResponse.json({
       success: true,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       notas: body.notas || "",
     };
 
-    const leadId = await createLead(leadData);
+    const leadId = await leadsService.create(leadData);
 
     return NextResponse.json(
       {

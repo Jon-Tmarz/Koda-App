@@ -1,8 +1,8 @@
 // Servicios de Firestore para manejo de datos dinámicos
 import { collection, doc, getDocs, getDoc, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, Timestamp, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
-import type { SalarioConfig, CargoTipo } from "@/types/salarios";
-import { DEFAULT_SALARIO_CONFIG, CARGO_MULTIPLICADORES } from "@/types/salarios";
+import type { SalarioConfig, Cargo, Servicio, Lead, Cotizacion, Talento, CargoTipo } from "@/types";
+import { DEFAULT_SALARIO_CONFIG, CARGO_MULTIPLICADORES } from "@/types";
 import { updateExchangeRate } from "./divisas-service";
 
 // ===== COLECCIONES =====
@@ -21,92 +21,6 @@ const COLLECTIONS = {
 export interface FirestoreSalarioConfig extends Omit<SalarioConfig, "createdAt" | "updatedAt"> {
   createdAt: Timestamp;
   updatedAt: Timestamp;
-}
-
-export interface Cargo {
-  id?: string;
-  nombre: CargoTipo;
-  multiplicador: number;
-  descripcion?: string;
-  activo: boolean;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
-
-export interface Servicio {
-  id?: string;
-  nombre: string;
-  descripcion?: string;
-  categoria: string;
-  cargosSugeridos?: CargoTipo[];
-  costos?: { nombre: string; costo: number; recurrencia: string; descripcion?: string }[];
-  activo: boolean;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
-
-export interface Lead {
-  id?: string;
-  empresa: string;
-  contacto: string;
-  email: string;
-  telefono?: string;
-  estado: "nuevo" | "contactado" | "negociacion" | "cerrado" | "perdido";
-  notas?: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
-
-export interface ColaboradorAsignado {
-  nombre: string;
-  cargo: CargoTipo;
-  horasAsignadas?: number; // Horas estimadas para este colaborador
-}
-
-export interface Cotizacion {
-  id?: string;
-  leadId?: string;
-  numero: string;
-  fecha: Timestamp;
-  items: CotizacionItem[];
-  subtotal: number;
-  iva: number;
-  total: number;
-  tiempoEstimado?: number; // En horas
-  subtotalNegociado?: number; // Valor negociado sin IVA
-  totalNegociado?: number; // Valor negociado con IVA
-  estado: "borrador" | "enviada" | "aprobada" | "rechazada";
-  pdfUrl?: string; // URL del PDF generado
-  notas?: NotaCotizacion[];
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
-
-export interface CotizacionItem {
-  descripcion: string;
-  colaboradores?: ColaboradorAsignado[]; // Colaboradores asignados al proyecto
-  horas: number;
-  costoPorHora: number;
-  subtotal: number;
-}
-
-export interface NotaCotizacion {
-  texto: string;
-  fecha: Timestamp;
-  autor?: string;
-}
-
-export interface Talento {
-  id?: string;
-  nombre: string;
-  cargo: CargoTipo;
-  email: string;
-  telefono?: string;
-  habilidades: string[];
-  activo: boolean;
-  fechaIngreso?: Timestamp;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
 }
 
 /**
@@ -320,11 +234,18 @@ export async function saveCargo(cargo: Omit<Cargo, "id" | "createdAt" | "updated
  */
 export async function getServicios(): Promise<Servicio[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTIONS.SERVICIOS));
-    return querySnapshot.docs.map((doc) => ({
-      ...doc.data(),
-      id: doc.id,
-    })) as Servicio[];
+    const q = query(collection(db, COLLECTIONS.SERVICIOS), orderBy("nombre", "asc"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        disponible: data.activo, // Mapeo de 'activo' a 'disponible'
+        createdAt: convertTimestampToDate(data.createdAt),
+        updatedAt: convertTimestampToDate(data.updatedAt),
+      } as Servicio;
+    });
   } catch (error) {
     console.error("Error obteniendo servicios:", error);
     throw error;
@@ -340,6 +261,8 @@ export async function saveServicio(
   try {
     const docRef = await addDoc(collection(db, COLLECTIONS.SERVICIOS), {
       ...servicio,
+      // Mapeo inverso para guardar en la base de datos
+      activo: servicio.disponible,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

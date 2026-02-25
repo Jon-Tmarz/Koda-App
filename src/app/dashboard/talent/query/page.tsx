@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { CargoTipo } from "@/types/salarios";
@@ -20,7 +18,8 @@ export default function QuerySalarioPage() {
 
   useEffect(() => {
     fetchLatestConfig();
-  }, [fetchLatestConfig]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // fetchLatestConfig está memoizado con useCallback en el hook
 
   // Cálculo automático unificado y reactivo
   const resultadosUnificados = useMemo(() => {

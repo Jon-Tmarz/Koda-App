@@ -9,8 +9,8 @@ import Link from "next/link";
 import { SalarioConfig, DEFAULT_SALARIO_CONFIG, CARGO_MULTIPLICADORES, CargoTipo } from "@/types/salarios";
 import { calcularIncremento } from "@/lib/salarios";
 import { useSalarios } from "@/hooks/use-salarios";
-import { GlobalConfigCard } from "./components/GlobalConfigCard";
-import { CargoFactorsCard } from "./components/CargoFactorsCard";
+import { GlobalConfigCard } from "../../../../components/talent/GlobalConfigCard";
+import { CargoFactorsCard } from "../../../../components/talent/CargoFactorsCard";
 
 export default function EditSalarioPage() {
   const router = useRouter();

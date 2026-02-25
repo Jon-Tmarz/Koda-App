@@ -216,7 +216,9 @@ Obtiene todas las cotizaciones ordenadas por fecha (más recientes primero).
       "total": 2380000,
       "estado": "borrador",
       "fecha": "2026-01-08T12:00:00.000Z",
-      "pdfUrl": null
+      "pdfUrl": null,
+      "createdAt": "2026-01-08T12:00:00.000Z",
+      "updatedAt": "2026-01-08T12:00:00.000Z"
     }
   ],
   "count": 1
@@ -245,7 +247,9 @@ Obtiene una cotización específica por su ID.
     "total": 2380000,
     "estado": "borrador",
     "fecha": "2026-01-08T12:00:00.000Z",
-    "pdfUrl": null
+    "pdfUrl": null,
+    "createdAt": "2026-01-08T12:00:00.000Z",
+    "updatedAt": "2026-01-08T12:00:00.000Z"
   }
 }
 ```
@@ -606,6 +610,264 @@ curl -X DELETE http://localhost:3000/api/leads/{id}
 > **Nota:** Los componentes de la aplicación web usan Firestore directamente mediante `@/lib/firestore-services`. Estos endpoints API están diseñados específicamente para integraciones externas (n8n, webhooks, etc.).
 
 ---
+
+### Herramientas API
+
+Endpoints REST para gestionar las herramientas y software utilizados.
+
+#### GET `/api/tools`
+
+Obtiene herramientas con filtros opcionales. **No requiere autenticación**.
+
+**Query Parameters (todos opcionales):**
+- `disponibles=true` - Retorna solo herramientas disponibles
+- `id=X` - Búsqueda exacta por ID
+- `proveedor=X` - Búsqueda parcial por proveedor (case-insensitive)
+- `categoria=X` - Búsqueda exacta por categoría (case-insensitive)
+- `nombre=X` - Búsqueda parcial por nombre (case-insensitive)
+
+**Ejemplo de uso:**
+```bash
+# Obtener todas las herramientas
+curl http://localhost:3000/api/tools
+
+# Obtener solo herramientas disponibles
+curl http://localhost:3000/api/tools?disponibles=true
+
+# Buscar por categoría
+curl http://localhost:3000/api/tools?categoria=Software
+
+# Buscar por proveedor
+curl http://localhost:3000/api/tools?proveedor=AWS
+
+# Buscar por nombre
+curl http://localhost:3000/api/tools?nombre=EC2
+
+# Combinar filtros
+curl http://localhost:3000/api/tools?categoria=Software&disponibles=true
+```
+
+**Respuesta exitosa (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "tool123",
+      "nombre": "AWS EC2",
+      "categoria": "infraestructura",
+      "tipoCobranza": "uso",
+      "costo": 150,
+      "divisa": "USD",
+      "proveedor": "Amazon Web Services",
+      "descripcion": "Servicio de computación elástica en la nube",
+      "disponible": true,
+      "createdAt": "2026-01-18T10:00:00.000Z",
+      "updatedAt": "2026-01-18T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+#### GET `/api/tools/[id]`
+
+Obtiene una herramienta específica por su ID. **No requiere autenticación**.
+
+**Path Parameters:**
+- `id` (requerido) - ID de la herramienta
+
+**Ejemplo de uso:**
+```bash
+curl http://localhost:3000/api/tools/tool123
+```
+
+**Respuesta exitosa (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "tool123",
+    "nombre": "AWS EC2",
+    "categoria": "infraestructura",
+    "tipoCobranza": "uso",
+    "costo": 150,
+    "divisa": "USD",
+    "proveedor": "Amazon Web Services",
+    "descripcion": "Servicio de computación elástica en la nube",
+    "disponible": true,
+    "createdAt": "2026-01-18T10:00:00.000Z",
+    "updatedAt": "2026-01-18T10:00:00.000Z"
+  }
+}
+```
+
+**Errores:**
+- `404` - Herramienta no encontrada
+
+---
+
+#### POST `/api/tools`
+
+Crea una nueva herramienta. **Requiere API Key válida en headers**.
+
+**Request Body:**
+```json
+{
+  "nombre": "Figma",
+  "categoria": "Software",
+  "tipoCobranza": "mensual",
+  "costo": 15,
+  "divisa": "USD",
+  "proveedor": "Figma Inc.",
+  "descripcion": "Herramienta de diseño colaborativo",
+  "disponible": true
+}
+```
+
+**Categorías válidas:**
+- `Software`
+- `infraestructura`
+- `Plataforma`
+- `Servicio`
+- `otro`
+
+**Tipos de cobranza válidos:**
+- `mensual`
+- `anual`
+- `uso`
+- `unico`
+
+**Divisas válidas:**
+- `USD`
+- `COP`
+
+**Campos requeridos:** 
+- `nombre`
+- `categoria`
+- `tipoCobranza`
+
+**Campos opcionales:**
+- `costo` (default: 0)
+- `divisa` (default: USD)
+- `descripcion`
+- `proveedor`
+- `disponible` (default: true)
+
+**Respuesta exitosa (201):**
+```json
+{
+  "success": true,
+  "message": "Herramienta creada exitosamente"
+}
+```
+
+**Ejemplo con curl:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer TU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Sentry",
+    "categoria": "Software",
+    "tipoCobranza": "mensual",
+    "costo": 29,
+    "divisa": "USD",
+    "proveedor": "Sentry Inc."
+  }' \
+  http://localhost:3000/api/tools
+```
+
+---
+
+#### PUT `/api/tools/[id]`
+
+Actualiza una herramienta existente. **Requiere API Key válida en headers**. Solo los campos proporcionados serán actualizados (actualización parcial).
+
+**Path Parameters:**
+- `id` (requerido) - ID de la herramienta a actualizar
+
+**Request Body:**
+```json
+{
+  "nombre": "Figma Pro",
+  "costo": 25,
+  "disponible": false
+}
+```
+
+**Respuesta exitosa (200):**
+```json
+{
+  "success": true,
+  "message": "Herramienta actualizada exitosamente",
+  "data": {
+    "id": "tool456",
+    "nombre": "Figma Pro",
+    "categoria": "Software",
+    "tipoCobranza": "mensual",
+    "costo": 25,
+    "divisa": "USD",
+    "proveedor": "Figma Inc.",
+    "descripcion": "Herramienta de diseño colaborativo",
+    "disponible": false,
+    "createdAt": "2026-01-18T10:00:00.000Z",
+    "updatedAt": "2026-01-18T12:00:00.000Z"
+  }
+}
+```
+
+**Errores:**
+- `404` - Herramienta no encontrada
+
+**Ejemplo con curl:**
+```bash
+curl -X PUT \
+  -H "Authorization: Bearer TU_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"costo": 25}' \
+  http://localhost:3000/api/tools/tool456
+```
+
+---
+
+#### DELETE `/api/tools/[id]`
+
+Elimina una herramienta. **Requiere API Key válida en headers**.
+
+**Path Parameters:**
+- `id` (requerido) - ID de la herramienta a eliminar
+
+**Respuesta exitosa (200):**
+```json
+{
+  "success": true,
+  "message": "Herramienta eliminada exitosamente",
+  "data": {
+    "id": "tool789"
+  }
+}
+```
+
+**Errores:**
+- `404` - Herramienta no encontrada
+
+**Ejemplo con curl:**
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer TU_API_KEY" \
+  http://localhost:3000/api/tools/tool789
+```
+
+---
+
+**Resumen de autenticación:**
+- `GET /api/tools` - ✅ Sin autenticación
+- `GET /api/tools/[id]` - ✅ Sin autenticación
+- `POST /api/tools` - 🔒 Requiere API Key
+- `PUT /api/tools/[id]` - 🔒 Requiere API Key
+- `DELETE /api/tools/[id]` - 🔒 Requiere API Key
 
 ## Getting Started
 

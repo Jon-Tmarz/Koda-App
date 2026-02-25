@@ -1,12 +1,14 @@
-import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, Timestamp, query, where } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc, Timestamp, query, where } from "firebase/firestore";
 import { db } from "./firebase";
-import type { Herramienta } from "@/types";
+import { type Herramienta, CATEGORIAS_HERRAMIENTA, TIPOS_COBRANZA, DIVISAS } from "@/types";
 
 export interface HerramientaFormData {
   nombre: string;
-  categoria: "licencia" | "infraestructura" | "herramienta" | "otro";
-  tipoCobranza: "mensual" | "anual" | "uso" | "unico";
+  // category options must match the form and type definitions
+  categoria: typeof CATEGORIAS_HERRAMIENTA[number];
+  tipoCobranza: typeof TIPOS_COBRANZA[number];
   costo: number;
+  divisa: typeof DIVISAS[number];
   descripcion?: string;
   proveedor?: string;
   disponible: boolean;
@@ -22,6 +24,18 @@ export const herramientasService = {
       id: doc.id,
       ...doc.data(),
     })) as Herramienta[];
+  },
+
+  /**
+   * Obtener una herramienta por su ID
+   */
+  async getById(id: string): Promise<Herramienta | null> {
+    const docRef = doc(db, "herramientas", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Herramienta;
+    }
+    return null;
   },
 
   /**
@@ -45,6 +59,7 @@ export const herramientasService = {
       categoria: data.categoria,
       tipoCobranza: data.tipoCobranza,
       costo: Number(data.costo),
+      divisa: data.divisa,
       descripcion: data.descripcion || "",
       proveedor: data.proveedor || "",
       disponible: data.disponible ?? true,
@@ -63,6 +78,7 @@ export const herramientasService = {
       categoria: data.categoria,
       tipoCobranza: data.tipoCobranza,
       costo: Number(data.costo),
+      divisa: data.divisa,
       descripcion: data.descripcion || "",
       proveedor: data.proveedor || "",
       disponible: data.disponible ?? true,

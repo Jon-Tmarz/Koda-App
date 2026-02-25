@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
 import type { Servicio } from "@/types";
+import { HoverTooltip } from "@/components/ui/hover-tooltip";
 
 interface ServicesTableProps {
   servicios: Servicio[];
@@ -65,7 +66,19 @@ export function ServicesTable({
       <TableBody>
         {servicios.map((servicio) => (
           <TableRow key={servicio.id}>
-            <TableCell className="font-medium">{servicio.nombre}</TableCell>
+            <TableCell className="font-medium">
+              <HoverTooltip
+                enabled={!!servicio.descripcion}
+                content={
+                  <div className="bg-white">
+                    <p className="font-semibold mb-1">Descripción:</p>
+                    {servicio.descripcion}
+                  </div>
+                }
+              >
+              {servicio.nombre}
+              </HoverTooltip>
+            </TableCell>
             <TableCell>{servicio.categoria}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">

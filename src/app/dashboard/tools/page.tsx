@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { HerramientaFormDialog } from "@/components/tools/tool-form-dialog";
 import { HerramientasTable } from "@/components/tools/tools-table";
 import { herramientasService, type HerramientaFormData } from "@/lib/tools-service";
@@ -12,6 +13,11 @@ export default function HerramientasPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHerramienta, setEditingHerramienta] = useState<Herramienta | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const loadHerramientas = async () => {
     try {
@@ -60,25 +66,22 @@ export default function HerramientasPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Herramientas Tecnológicas
-          </h2>
-          <p className="text-muted-foreground">
-            Administra el catálogo de herramientas que dominas y puedes ofrecer
-          </p>
-        </div>
-        <HerramientaFormDialog
-          editingHerramienta={editingHerramienta}
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) setEditingHerramienta(null);
-          }}
-          onSubmit={handleSubmit}
-        />
-      </div>
+      <PageHeader
+        title="Herramientas Tecnológicas"
+        description="Administra el catálogo de herramientas que dominas y puedes ofrecer"
+      >
+        {isClient && (
+          <HerramientaFormDialog
+            editingHerramienta={editingHerramienta}
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setEditingHerramienta(null);
+            }}
+            onSubmit={handleSubmit}
+          />
+        )}
+      </PageHeader>
 
       <Card className="border-border/40">
         <CardHeader>

@@ -1,12 +1,12 @@
 import { db } from "./firebase";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "firebase/firestore";
 import type { Lead } from "@/types";
 
 export interface LeadFormData {
-  nombre: string;
+  contacto: string;
   empresa: string;
   email: string;
-  telefono: string;
+  telefono?: string;
   estado: "nuevo" | "contactado" | "negociacion" | "cerrado" | "perdido";
   notas?: string;
 }
@@ -16,27 +16,30 @@ export const leadsService = {
    * Obtener todos los leads
    */
   async getAll(): Promise<Lead[]> {
-    const q = query(collection(db, "leads"), orderBy("fechaCreacion", "desc"));
+    const q = query(collection(db, "leads"), orderBy("createdAt", "desc"));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Lead[];
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate(),
+      };
+    }) as Lead[];
   },
 
   /**
    * Crear un nuevo lead
    */
-  async create(data: LeadFormData): Promise<void> {
-    await addDoc(collection(db, "leads"), {
-      nombre: data.nombre,
-      empresa: data.empresa,
-      email: data.email,
-      telefono: data.telefono,
-      estado: data.estado,
+  async create(data: LeadFormData): Promise<string> {
+    const docRef = await addDoc(collection(db, "leads"), {
+      ...data,
       notas: data.notas || "",
-      fechaCreacion: Timestamp.now(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
+    return docRef.id;
   },
 
   /**
@@ -44,9 +47,7 @@ export const leadsService = {
    */
   async update(id: string, data: Partial<LeadFormData>): Promise<void> {
     const docRef = doc(db, "leads", id);
-    await updateDoc(docRef, {
-      ...data,
-    });
+    await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
   },
 
   /**

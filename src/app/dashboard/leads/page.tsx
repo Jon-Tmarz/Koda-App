@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { LeadFormDialog } from "@/components/leads/lead-form-dialog";
+import { LeadFormDialog, type LeadFormData } from "@/components/leads/lead-form-dialog"; 
 import { LeadsStats } from "@/components/leads/leads-stats";
 import { LeadsGrid } from "@/components/leads/leads-grid";
-import { leadsService } from "@/lib/leads-service";
+import { leadsService } from "@/lib/leads-service"; 
+import { PageHeader } from "@/components/ui/page-header";
 import type { Lead } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,7 +16,12 @@ export default function LeadsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [filterEstado, setFilterEstado] = useState<string>("todos");
+  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const loadLeads = async () => {
     try {
@@ -67,9 +72,32 @@ export default function LeadsPage() {
     }
   };
 
-  const handleSuccess = () => {
-    loadLeads();
-    setDialogOpen(false);
+  const handleSubmit = async (data: LeadFormData, editingId?: string) => {
+    try {
+      if (editingId) {
+        await leadsService.update(editingId, data);
+        toast({
+          title: "Éxito",
+          description: "Lead actualizado correctamente",
+        });
+      } else {
+        await leadsService.create(data);
+        toast({
+          title: "Éxito",
+          description: "Lead creado correctamente",
+        });
+      }
+      setEditingLead(null);
+      await loadLeads();
+    } catch (error) {
+      console.error("Error guardando lead:", error);
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el lead",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
 
   const handleNewLead = () => {
@@ -82,20 +110,22 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">
-            Gestión de Leads
-          </h2>
-          <p className="text-muted-foreground">
-            Administra tus clientes potenciales
-          </p>
-        </div>
-        <Button onClick={handleNewLead}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Lead
-        </Button>
-      </div>
+      <PageHeader
+        title="Gestión de Leads"
+        description="Administra tus clientes potenciales"
+      >
+        {isClient && (
+          <LeadFormDialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setEditingLead(null);
+            }}
+            editingLead={editingLead}
+            onSubmit={handleSubmit}
+          />
+        )}
+      </PageHeader>
 
       <LeadsStats stats={estadoCounts} onFilterChange={setFilterEstado} />
 
@@ -107,13 +137,6 @@ export default function LeadsPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onCreate={handleNewLead}
-      />
-
-      <LeadFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        lead={editingLead}
-        onSuccess={handleSuccess}
       />
     </div>
   );

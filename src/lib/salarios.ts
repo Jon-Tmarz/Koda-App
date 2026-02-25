@@ -45,10 +45,9 @@ export function calcularSalarioMensual(
   // 1. Salario base del cargo (Base * Multiplicador)
   const salarioBaseCargo = config.salarioBase * multiplicador;
   
-  // 2. Auxilio de transporte (Sólo para Auxiliar y Técnico)
-  // Según indicación del usuario, aunque cumpla el tope de 2 SMMLV, 
-  // se restringe a estos dos cargos específicos.
-  const aplicaAuxilio = cargo === "Auxiliar" || cargo === "Técnico";
+  // 2. Auxilio de transporte
+  // Aplica si el salario base del cargo es <= 2 SMMLV (config.salarioBase)
+  const aplicaAuxilio = salarioBaseCargo <= config.salarioBase * 2;
   const auxilioTransporte = aplicaAuxilio ? config.auxilioTransporte : 0;
   
   // 3. Salario bruto informativo (Base Cargo + Auxilio)
@@ -127,6 +126,7 @@ export function calcularSalarioPorHora(
   
   // Cálculos por hora (dividen los valores mensuales)
   const salarioHoraBase = salarioMensual.salarioBaseCargo / horasLegales;
+  const auxTransporteHora = salarioMensual.auxilioTransporte / horasLegales;
   const costoHoraEmpresa = salarioMensual.costoEmpresa / horasLegales;
   const gananciaHora = salarioMensual.gananciaValor / horasLegales;
   const ivaHora = salarioMensual.ivaValor / horasLegales;
@@ -138,6 +138,7 @@ export function calcularSalarioPorHora(
     cargo: salarioMensual.cargo,
     horasLegales,
     salarioHoraBase,
+    auxTransporteHora,
     costoHoraEmpresa,
     gananciaHora,
     ivaHora,
