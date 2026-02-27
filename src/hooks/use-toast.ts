@@ -12,7 +12,7 @@ type ToasterToast = {
 };
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 1000; // 1 segundo para eliminar del DOM tras la animación
 
 type ToastProps = Omit<ToasterToast, "id">;
 
@@ -134,7 +134,7 @@ function dispatch(action: Action) {
   });
 }
 
-export function toast({ ...props }: ToastProps) {
+export function toast({ duration = 5000, ...props }: ToastProps) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -157,11 +157,9 @@ export function toast({ ...props }: ToastProps) {
   });
 
   // Auto-dismiss después de la duración especificada
-  if (props.duration !== undefined && props.duration > 0) {
-    setTimeout(() => {
-      dismiss();
-    }, props.duration);
-  }
+  setTimeout(() => {
+    dismiss();
+  }, duration);
 
   return {
     id: id,

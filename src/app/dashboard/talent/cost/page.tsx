@@ -103,7 +103,7 @@ export default function TalentCostPage() {
                 Multiplicadores por Cargo
               </h4>
               <ul className="text-sm text-muted-foreground space-y-1">
-                {Object.entries(multipliers).map(([level, multiplier]) => (
+                {multipliers && Object.entries(multipliers).map(([level, multiplier]) => (
                   <li key={level}>• <strong>{level}:</strong> {multiplier}x Salario Base</li>
                 ))}
               </ul>

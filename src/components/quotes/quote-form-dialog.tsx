@@ -15,6 +15,8 @@ import { type Lead, type Servicio, type CargoTipo, DEFAULT_SALARIO_CONFIG } from
 import { serviciosService } from "@/lib/servicios-service";
 import { calcularSalarioCompleto } from "@/lib/salarios";
 import { useSalarios } from "@/hooks/use-salarios";
+import { QuoteItemCreator } from "./quote-item-creator";
+import { QuoteDetailsDialog } from "./quote-details-dialog";
 
 const quoteItemSchema = z.object({
   descripcion: z.string().min(1, "La descripción es requerida."),
@@ -26,11 +28,13 @@ const quoteItemSchema = z.object({
 
 export const quoteFormSchema = z.object({
   numero: z.string(),
+  titulo: z.string().min(1, "El título del proyecto es requerido."),
   cliente: z.string().min(1, "Debe seleccionar un cliente."),
   items: z.array(quoteItemSchema).min(1, "Debe haber al menos un item."),
   subtotal: z.number().default(0),
   iva: z.number().default(0),
   total: z.number().default(0),
+  contenido: z.string().min(8, "El contenido del proyecto es requerido (debe tener más que un párrafo vacío)."),
   estado: z.enum(["borrador", "enviada", "aprobada", "rechazada"]),
   pdfUrl: z.string().optional(),
 });
@@ -83,11 +87,13 @@ export function QuoteFormDialog({
 }: QuoteFormDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const { config: salarioConfig, multipliers, fetchLatestConfig } = useSalarios();
 
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const onOpenChange = isControlled ? controlledOnOpenChange! : setInternalOpen;
+  const itemsAdd = [{title: "Descripción", class: "col-span-2"}, {title: "Horas", class: "text-center"}, {title: "Costo/Hora", class: "text-right"}, {title: "Costo Total", class: "text-right"}]
 
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
@@ -121,11 +127,16 @@ export function QuoteFormDialog({
   const watchedItems = watch("items");
 
   useEffect(() => {
-    const rawSubtotal = watchedItems.reduce((sum, item) => sum + (item.horas * item.costoPorHora), 0);
-    const subtotal = Math.round(rawSubtotal / 100) * 100;
-    const iva = subtotal * (DEFAULT_SALARIO_CONFIG.iva / 100);
-    const total = subtotal + iva;
-    setValue("subtotal", subtotal, { shouldValidate: true });
+    // El costoPorHora ya incluye IVA. La suma de los items es el TOTAL.
+    const totalConIva = watchedItems.reduce((sum, item) => sum + ((item.horas || 0) * (item.costoPorHora || 0)), 0);
+    
+    // Calculamos el subtotal (base) a partir del total.
+    const subtotalBase = totalConIva / (1 + (DEFAULT_SALARIO_CONFIG.iva / 100));
+    const subtotalRedondeado = Math.round(subtotalBase / 100) * 100;
+    const iva = subtotalRedondeado * (DEFAULT_SALARIO_CONFIG.iva / 100);
+    const total = Math.ceil((subtotalRedondeado + iva)/100) * 100; // Redondeamos el total al múltiplo de 100 más cercano
+
+    setValue("subtotal", subtotalRedondeado, { shouldValidate: true });
     setValue("iva", iva);
     setValue("total", total);
 
@@ -139,18 +150,21 @@ export function QuoteFormDialog({
 
   useEffect(() => {
     if (open) {
-      form.reset(initialData);
+      const resetData = { ...initialData, items: initialData.items.map(item => ({ ...item, cargo: item.cargo || undefined })) };
+      form.reset(resetData);
     }
   }, [initialData, open, form]);
 
-  const addItem = () => {
-    append({ descripcion: "", cargo: undefined, horas: 1, costoPorHora: 0, subtotal: 0 });
+  const handleAddItem = (item: z.infer<typeof quoteItemSchema>) => {
+    append(item);
+  };
+  const removeItem = (index: number) => {
+    remove(index);
   };
 
-  const removeItem = (index: number) => {
-    if (fields.length > 1) {
-      remove(index);
-    }
+  const handleSaveDetails = (details: { titulo: string; contenido: string }) => {
+    setValue("titulo", details.titulo);
+    setValue("contenido", details.contenido);
   };
 
   const calculateAndUpdateCost = (itemIndex: number, cargo: CargoTipo | undefined) => {
@@ -187,7 +201,7 @@ export function QuoteFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && !open && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <DialogTitle className="text-2xl">
@@ -204,15 +218,25 @@ export function QuoteFormDialog({
 
         <form onSubmit={handleSubmit(onValidSubmit)} className="grid gap-6 py-4">
           {/* Información básica */}
-          <div className="space-y-4">
-            <div className="pb-2 border-b border-border">
-              <h3 className="text-base font-semibold text-black">
-                Información General
-              </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                Datos básicos de la cotización
-              </p>
+          <div className="space-y-4 ">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <div>
+                <h3 className="text-base font-semibold text-black">
+                  Información General
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  Datos básicos de la cotización y detalles del proyecto.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setDetailsDialogOpen(true)}
+              >
+                Detalles del Proyecto
+              </Button>
             </div>
+            {errors.titulo && <p className="text-sm text-red-500">{errors.titulo.message}</p>}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="numero" className="text-foreground">
@@ -238,7 +262,7 @@ export function QuoteFormDialog({
                       <SelectTrigger id="cliente">
                         <SelectValue placeholder="Selecciona un cliente..." />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-white">
                         {leads.map((lead) => (
                           <SelectItem key={lead.id} value={lead.id!}>
                             {lead.empresa && lead.contacto ? `${lead.empresa} (${lead.contacto})` : lead.empresa || lead.contacto}
@@ -290,150 +314,60 @@ export function QuoteFormDialog({
                   Agrega los servicios o productos de esta cotización
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addItem}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Agregar Item
-              </Button>
             </div>
+            {errors.contenido && <p className="text-sm text-red-500">{errors.contenido.message}</p>}
 
-            <div className="space-y-3">
-              {fields.map((item, index) => (
-                <Card key={item.id} className="p-4 bg-background border-border">
-                  <div className="grid gap-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 flex-1 gap-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor={`descripcion-${index}`}>
-                            Descripción *
-                          </Label>
-                          <Controller
-                            name={`items.${index}.descripcion`}
-                            control={control}
-                            render={({ field }) => (
-                              <Select
-                                onValueChange={(value) => {
-                                  field.onChange(value);
-                                  const servicioSeleccionado = servicios.find(s => s.nombre === value);
-                                  let cargoParaCalcular: CargoTipo | undefined;
+            <QuoteItemCreator
+              servicios={servicios}
+              salarioConfig={salarioConfig}
+              multipliers={multipliers}
+              onAddItem={handleAddItem}
+            />
 
-                                  if (servicioSeleccionado?.cargosSugeridos?.length) {
-                                    cargoParaCalcular = servicioSeleccionado.cargosSugeridos[0] as CargoTipo;
-                                    setValue(`items.${index}.cargo`, cargoParaCalcular, { shouldValidate: true });
-                                  } else {
-                                    setValue(`items.${index}.cargo`, undefined);
-                                  }
-                                  calculateAndUpdateCost(index, cargoParaCalcular);
-                                }}
-                                defaultValue={field.value}
-                                value={field.value}
-                              >
-                                <SelectTrigger id={`descripcion-${index}`}>
-                                  <SelectValue placeholder="Selecciona un servicio..." />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white">
-                                  {servicios.map((servicio) => (
-                                    <SelectItem key={servicio.id} value={servicio.nombre}>
-                                      {servicio.nombre}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`cargo-${index}`}>Cargo</Label>
-                          <Controller
-                            name={`items.${index}.cargo`}
-                            control={control}
-                            render={({ field }) => {
-                              const servicioSeleccionado = servicios.find(s => s.nombre === watchedItems[index].descripcion);
-                              const cargosSugeridos = servicioSeleccionado?.cargosSugeridos || [];
-                              return (
-                                <Select
-                                  onValueChange={(value) => {
-                                    field.onChange(value);
-                                    calculateAndUpdateCost(index, value as CargoTipo);
-                                  }}
-                                  value={field.value}
-                                  disabled={cargosSugeridos.length === 0}
-                                >
-                                  <SelectTrigger id={`cargo-${index}`}>
-                                    <SelectValue placeholder="Selecciona un cargo..." />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-white">
-                                    {cargosSugeridos.map((cargo) => (
-                                      <SelectItem key={cargo} value={cargo}>
-                                        {cargo}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              );
-                            }}
-                          />
-                        </div>
-                      </div>
-                      {fields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeItem(index)}
-                          className="mt-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="grid gap-2">
-                        <Label htmlFor={`horas-${index}`}>Horas *</Label>
-                        <Input
-                          id={`horas-${index}`}
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          {...register(`items.${index}.horas`)}
-                          placeholder="0"
-                          className="tabular-nums"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor={`costo-${index}`}>Costo/Hora *</Label>
-                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted font-semibold tabular-nums text-black">
-                          $
-                          {Math.round(watchedItems[index]?.costoPorHora || 0).toLocaleString("es-CO", {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          })}
-                        </div>
-                        {/* Hidden input to keep the value in the form data */}
-                        <input type="hidden" {...register(`items.${index}.costoPorHora`)} />
-
-
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Subtotal</Label>
-                        <div className="h-10 flex items-center px-3 rounded-md border border-input bg-muted font-semibold tabular-nums text-black">
-                          $
-                          {(watchedItems[index]?.horas * watchedItems[index]?.costoPorHora || 0).toLocaleString("es-CO", {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0,
-                          })}
-                        </div>
-                      </div>
-                    </div>
+            {fields.length > 0 && (
+              <div className="pt-4">
+                <h4 className="text-sm font-medium text-black">Items Agregados</h4>
+                <div className="flex items-center justify-between gap-4 px-3 mt-2 pb-1 border-b">
+                  <div className="flex-1 grid grid-cols-5 gap-4 items-center text-xs font-semibold text-muted-foreground">
+                    {itemsAdd.map((header, index) => (
+                      <span key={index} className={header.class}>
+                        {header.title}
+                      </span>
+                    ))}
                   </div>
-                </Card>
-              ))}
-            </div>
+                  <div className="w-8 h-1"></div> {/* Placeholder for delete icon */}
+                </div>
+                {fields.map((item, index) => (
+                  <Card key={item.id} className="p-3 bg-muted/50">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                        <span className="col-span-2 font-medium text-sm truncate" title={item.descripcion}>
+                          {item.descripcion}
+                          {item.cargo && <span className="text-xs text-muted-foreground ml-2">({item.cargo})</span>}
+                        </span>
+                        <span className="text-sm tabular-nums text-center">{item.horas}h</span>
+                        <span className="text-sm tabular-nums text-right">
+                          ${(item.costoPorHora || 0).toLocaleString("es-CO")}
+                        </span>
+                        <span className="text-sm font-semibold tabular-nums text-right">
+                          ${((item.horas || 0) * (item.costoPorHora || 0)).toLocaleString("es-CO")}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+
             {errors.items && <p className="text-sm text-red-500">{errors.items.message || errors.items.root?.message}</p>}
           </div>
 
@@ -471,8 +405,8 @@ export function QuoteFormDialog({
                 <span className="text-3xl font-bold tabular-nums text-primary text-black">
                   $
                   {watch("total").toLocaleString("es-CO", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
                   })}
                 </span>
               </div>
@@ -498,6 +432,14 @@ export function QuoteFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        <QuoteDetailsDialog
+          open={detailsDialogOpen}
+          onOpenChange={setDetailsDialogOpen}
+          initialTitle={watch("titulo")}
+          initialContent={watch("contenido")}
+          onSave={handleSaveDetails}
+        />
       </DialogContent>
     </Dialog>
   );

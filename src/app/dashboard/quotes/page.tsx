@@ -4,34 +4,25 @@ import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { QuotesTable } from "@/components/quotes/quotes-table";
-import { QuoteFormDialog, type QuoteFormData } from "@/components/quotes/quote-form-dialog";
+import { QuoteFormDialog } from "@/components/quotes/quote-form-dialog";
+import { QuoteContentDialog } from "@/components/quotes/quote-content-dialog";
 import { DeleteQuoteDialog } from "@/components/quotes/delete-quote-dialog";
 import { quotesService, type Quote } from "@/lib/quotes-service";
-import { leadsService } from "@/lib/leads-service";
 import { projectsService } from "@/lib/projects-service";
 import { useToast } from "@/hooks/use-toast";
+import { useQuoteForm } from "@/hooks/use-quote-form";
 import { Plus } from "lucide-react";
-import type { Lead } from "@/types";
-
-const BLANK_QUOTE: QuoteFormData = {
-  numero: "",
-  cliente: "",
-  items: [{ descripcion: "", horas: 1, costoPorHora: 0, subtotal: 0 }],
-  subtotal: 0,
-  iva: 0,
-  total: 0,
-  estado: "borrador",
-};
 
 export default function QuotesPage() {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [initialFormData, setInitialFormData] = useState<QuoteFormData>(BLANK_QUOTE);
+  const {
+    quotes, leads, loading, dialogOpen, setDialogOpen,
+    deleteDialogOpen, setDeleteDialogOpen, editingId, setEditingId,
+    deletingId, setDeletingId, initialFormData,
+    handleCreate, handleEdit, handleSave, loadAllData
+  } = useQuoteForm();
+  const [contentDialogOpen, setContentDialogOpen] = useState(false);
+  const [viewingQuote, setViewingQuote] = useState<Quote | null>(null);
+
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
 
@@ -39,90 +30,9 @@ export default function QuotesPage() {
     setIsClient(true);
   }, []);
 
-  const loadAllData = async () => {
-    try {
-      setLoading(true);
-      const [quotesData, leadsData] = await Promise.all([
-        quotesService.getAll(),
-        leadsService.getAll(),
-      ]);
-      setQuotes(quotesData);
-      setLeads(leadsData);
-    } catch (error) {
-      console.error("Error cargando datos:", error);
-      toast({ title: "Error", description: "No se pudieron cargar los datos.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadAllData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleCreate = async () => {
-    try {
-        const nextNumber = await quotesService.getNextQuoteNumber();
-        setInitialFormData({ ...BLANK_QUOTE, numero: nextNumber });
-        setEditingId(null);
-        setDialogOpen(true);
-    } catch (error) {
-        console.error("Error generando número de cotización:", error);
-        toast({ title: "Error", description: "No se pudo generar el número de cotización.", variant: "destructive" });
-    }
-  };
-
-  const handleEdit = async (id: string) => {
-    const quoteToEdit = await quotesService.getById(id);
-    if (quoteToEdit) {
-      setInitialFormData({
-        numero: quoteToEdit.numero,
-        cliente: quoteToEdit.clienteId,
-        items: quoteToEdit.items,
-        subtotal: quoteToEdit.subtotal,
-        iva: quoteToEdit.iva,
-        total: quoteToEdit.total,
-        estado: quoteToEdit.estado,
-        pdfUrl: quoteToEdit.pdfUrl,
-      });
-      setEditingId(id);
-      setDialogOpen(true);
-    }
-  };
-
-  const handleSave = async (data: QuoteFormData): Promise<void> => {
-    // Validation is now handled by Zod in the form component.
-    // We can add extra server-side-like validation here if needed.
-
-    const selectedLead = leads.find(lead => lead.id === data.cliente);
-    if (!selectedLead) {
-      toast({ title: "Error", description: "El cliente seleccionado no es válido.", variant: "destructive" });
-      throw new Error("Cliente no válido");
-    }
-
-    const { cliente, ...restOfData } = data;
-    const submitData = {
-      ...restOfData,
-      clienteId: cliente,
-      clienteNombre: selectedLead.empresa || selectedLead.contacto,
-    };
-
-    try {
-      if (editingId) {
-        await quotesService.update(editingId, submitData);
-        toast({ title: "Éxito", description: "Cotización actualizada correctamente." });
-      } else {
-        await quotesService.create(submitData);
-        toast({ title: "Éxito", description: "Cotización creada correctamente." });
-      }
-      setDialogOpen(false);
-      await loadAllData();
-    } catch (error) {
-      console.error("Error guardando cotización:", error);
-      toast({ title: "Error", description: "No se pudo guardar la cotización.", variant: "destructive" });
-      throw error; // Re-throw to be caught by form dialog
-    }
+  const handleViewContent = (quote: Quote) => {
+    setViewingQuote(quote);
+    setContentDialogOpen(true);
   };
 
   const handleStatusChange = async (id: string, estado: Quote["estado"], otro?: string) => {
@@ -204,6 +114,7 @@ export default function QuotesPage() {
         onEdit={handleEdit}
         onDelete={handleDeleteRequest}
         onCreate={handleCreate}
+        onViewContent={handleViewContent}
         onStatusChange={handleStatusChange}
       />
 
@@ -227,6 +138,14 @@ export default function QuotesPage() {
           onOpenChange={setDeleteDialogOpen}
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDeleteDialogOpen(false)}
+        />
+      )}
+
+      {isClient && (
+        <QuoteContentDialog
+          open={contentDialogOpen}
+          onOpenChange={setContentDialogOpen}
+          quote={viewingQuote}
         />
       )}
     </div>

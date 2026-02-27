@@ -25,9 +25,9 @@ export function DeleteQuoteDialog({
 }: DeleteQuoteDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="bg-white">
         <DialogHeader>
-          <DialogTitle>Confirmar eliminación</DialogTitle>
+          <DialogTitle><span className="text-black">Eliminar Cotización</span></DialogTitle>
           <DialogDescription>
             ¿Estás seguro de que deseas eliminar esta cotización? Esta acción no se puede deshacer.
           </DialogDescription>

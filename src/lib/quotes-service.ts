@@ -1,12 +1,12 @@
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, where, orderBy, limit, getDoc, } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Quote } from "@/types";
+import type { Quote, QuoteItem } from "@/types";
 
 /**
  * Datos necesarios para crear una cotización.
  * Se omiten los campos generados automáticamente por el servicio o la base de datos.
  */
-export type QuoteCreationData = Omit<Quote, "id" | "fecha" | "aprobacionNotas" | "createdAt" | "updatedAt">;
+export type QuoteCreationData = Omit<Quote, "id" | "fecha" | "aprobacionNotas" | "createdAt" | "updatedAt" | "items"> & { items: Omit<QuoteItem, "subtotal">[] };
 
 const QUOTES_COLLECTION = "cotizaciones";
 

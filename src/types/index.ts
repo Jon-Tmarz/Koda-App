@@ -49,12 +49,14 @@ interface QuoteItem {
 export interface Quote {
   id?: string;
   numero: string;
+  titulo?: string; // Título del proyecto/cotización
   clienteId: string;
   clienteNombre: string;
   items: QuoteItem[];
   subtotal: number;
   iva: number;
   total: number;
+  contenido?: string; // Contenido enriquecido (alcance, objetivos, etc.)
   estado: "borrador" | "enviada" | "aprobada" | "rechazada";
   pdfUrl?: string;
   fecha: Date;

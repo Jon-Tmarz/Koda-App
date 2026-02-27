@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
-import { Pencil, Trash2, Loader2, AlertCircle, CheckCircle2, XCircle, Plus, ExternalLink } from "lucide-react";
+import { Pencil, Trash2, Loader2, AlertCircle, CheckCircle2, XCircle, Plus, ExternalLink, FileText } from "lucide-react";
 import { ApproveQuoteDialog } from "./approve-quote-dialog";
 import type { Quote } from "@/lib/quotes-service";
 
@@ -14,10 +14,11 @@ interface QuotesTableProps {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onCreate: () => void;
+  onViewContent: (quote: Quote) => void;
   onStatusChange: (id: string, estado: Quote["estado"], otro?: string) => void;
 }
 
-const tableHeader = ["N° Cotización", "Cliente", "Fecha", "Subtotal", "IVA (19%)", "Total", "Estado", "Acciones"];
+const tableHeader = ["N° Cotización", "Título del proyecto", "Cliente", "Valor Total", "Estado", "Acciones"];
 
 const statusOptions = [
   { value: "borrador", label: "Borrador", icon: <AlertCircle className="h-3 w-3 mr-2 text-gray-500" /> },
@@ -32,6 +33,7 @@ export function QuotesTable({
   onEdit,
   onDelete,
   onCreate,
+  onViewContent,
   onStatusChange,
 }: QuotesTableProps) {
   const [approvingQuote, setApprovingQuote] = useState<Quote | null>(null);
@@ -112,7 +114,7 @@ export function QuotesTable({
             {tableHeader.map((header, index) => (
               <TableHead
                 key={index}
-                className={["Subtotal", "IVA (19%)", "Total", "Acciones"].includes(header) ? "text-right" : ""}
+                className={["Valor Total", "Acciones"].includes(header) ? "text-right" : ""}
               >
                 {header}
               </TableHead>
@@ -125,20 +127,14 @@ export function QuotesTable({
               <TableCell className="font-mono font-medium">
                 {quote.numero}
               </TableCell>
+              <TableCell className="font-medium max-w-xs truncate" title={quote.titulo}>
+                {quote.titulo || <span className="text-muted-foreground italic">Sin título</span>}
+              </TableCell>
               <TableCell className="font-medium">
                 {quote.clienteNombre}
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatDate(quote.fecha)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                ${quote.subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                ${quote.iva.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </TableCell>
               <TableCell className="text-right font-semibold tabular-nums">
-                ${quote.total.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${quote.total.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </TableCell>
               <TableCell>
                 <Select
@@ -148,7 +144,7 @@ export function QuotesTable({
                   <SelectTrigger className={`h-8 w-[120px] text-xs font-medium border-none focus:ring-0 ${getEstadoBadge(quote.estado)}`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {statusOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         <div className="flex items-center">
@@ -162,6 +158,15 @@ export function QuotesTable({
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onViewContent(quote)}
+                    className="h-8 w-8"
+                    title="Ver Contenido"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
