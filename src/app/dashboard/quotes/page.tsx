@@ -9,6 +9,7 @@ import { QuoteContentDialog } from "@/components/quotes/quote-content-dialog";
 import { DeleteQuoteDialog } from "@/components/quotes/delete-quote-dialog";
 import { quotesService, type Quote } from "@/lib/quotes-service";
 import { projectsService } from "@/lib/projects-service";
+import { getGlobalConfig } from "@/lib/firestore-services";
 import { useToast } from "@/hooks/use-toast";
 import { useQuoteForm } from "@/hooks/use-quote-form";
 import { Plus } from "lucide-react";
@@ -22,12 +23,22 @@ export default function QuotesPage() {
   } = useQuoteForm();
   const [contentDialogOpen, setContentDialogOpen] = useState(false);
   const [viewingQuote, setViewingQuote] = useState<Quote | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
 
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
+    const fetchConfig = async () => {
+      try {
+        const config = await getGlobalConfig();
+        setLogoUrl(config?.logo);
+      } catch (error) {
+        console.error("Error fetching global config for PDF logo:", error);
+      }
+    };
+    fetchConfig();
   }, []);
 
   const handleViewContent = (quote: Quote) => {
@@ -116,6 +127,7 @@ export default function QuotesPage() {
         onCreate={handleCreate}
         onViewContent={handleViewContent}
         onStatusChange={handleStatusChange}
+        onDataChange={loadAllData}
       />
 
       {isClient && (
@@ -146,6 +158,7 @@ export default function QuotesPage() {
           open={contentDialogOpen}
           onOpenChange={setContentDialogOpen}
           quote={viewingQuote}
+          logoUrl={logoUrl}
         />
       )}
     </div>

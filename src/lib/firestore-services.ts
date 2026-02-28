@@ -874,6 +874,26 @@ export async function recalcularCargosParaAño(año: number): Promise<{
   }
 }
 
+// ===== CONFIGURACION GLOBAL =====
+
+/**
+ * Obtiene la configuración global de la aplicación
+ */
+export async function getGlobalConfig(): Promise<ConfiguracionGlobal | null> {
+  try {
+    const docRef = doc(db, COLLECTIONS.CONFIGURACION, "global");
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as ConfiguracionGlobal;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error obteniendo configuración global:", error);
+    throw new Error("No se pudo obtener la configuración global.");
+  }
+}
+
+
 // ===== INICIALIZACIÓN DE DATOS =====
 
 /**

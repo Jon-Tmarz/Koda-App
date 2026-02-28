@@ -49,8 +49,20 @@ const create = async (data: QuoteCreationData): Promise<string> => {
 };
 
 const update = async (id: string, data: Partial<Omit<Quote, "id" | "createdAt" | "fecha">>): Promise<void> => {
+  // Clonamos el objeto para no mutar el original
+  const cleanData = { ...data };
+
+  // Eliminamos cualquier propiedad que sea 'undefined' para evitar errores de Firestore
+  for (const key in cleanData) {
+    if (Object.prototype.hasOwnProperty.call(cleanData, key)) {
+      if (cleanData[key as keyof typeof cleanData] === undefined) {
+        delete cleanData[key as keyof typeof cleanData];
+      }
+    }
+  }
+
   const docRef = doc(db, QUOTES_COLLECTION, id);
-  await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() });
+  await updateDoc(docRef, { ...cleanData, updatedAt: Timestamp.now() });
 };
 
 const remove = async (id: string): Promise<void> => {

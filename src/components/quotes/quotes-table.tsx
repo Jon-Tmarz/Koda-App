@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
-import { Pencil, Trash2, Loader2, AlertCircle, CheckCircle2, XCircle, Plus, ExternalLink, FileText } from "lucide-react";
+import { Pencil, Trash2, Loader2, AlertCircle, CheckCircle2, XCircle, Plus, ExternalLink, FileText, Send } from "lucide-react";
 import { ApproveQuoteDialog } from "./approve-quote-dialog";
 import type { Quote } from "@/lib/quotes-service";
 
@@ -16,6 +17,7 @@ interface QuotesTableProps {
   onCreate: () => void;
   onViewContent: (quote: Quote) => void;
   onStatusChange: (id: string, estado: Quote["estado"], otro?: string) => void;
+  onDataChange: () => void;
 }
 
 const tableHeader = ["N° Cotización", "Título del proyecto", "Cliente", "Valor Total", "Estado", "Acciones"];
@@ -35,8 +37,11 @@ export function QuotesTable({
   onCreate,
   onViewContent,
   onStatusChange,
+  onDataChange,
 }: QuotesTableProps) {
   const [approvingQuote, setApprovingQuote] = useState<Quote | null>(null);
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const getEstadoBadge = (estado: Quote["estado"]) => {
     const styles = {
@@ -59,6 +64,30 @@ export function QuotesTable({
   const handleApproveConfirm = (quoteId: string, otro: string) => {
     onStatusChange(quoteId, "aprobada", otro);
     setApprovingQuote(null);
+  };
+
+  const handleSendEmail = async (quoteId: string) => {
+    setSendingEmailId(quoteId);
+    try {
+      const response = await fetch(`/api/quotes/${quoteId}/send`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      toast({
+        title: "Correo Enviado",
+        description: "La cotización ha sido enviada al cliente exitosamente.",
+      });
+      onDataChange(); // Recarga los datos para mostrar el nuevo estado
+    } catch (error) {
+      console.error("Error sending quote email:", error);
+      toast({ title: "Error", description: "No se pudo enviar el correo.", variant: "destructive" });
+    } finally {
+      setSendingEmailId(null);
+    }
   };
 
   const formatDate = (fecha: unknown) => {
@@ -158,6 +187,21 @@ export function QuotesTable({
               </TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => quote.id && handleSendEmail(quote.id)}
+                    disabled={!quote.id || sendingEmailId === quote.id}
+                    className="h-8 w-8"
+                    title="Enviar por Correo"
+                  >
+                    {sendingEmailId === quote.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+
                   <Button
                     variant="ghost"
                     size="icon"
