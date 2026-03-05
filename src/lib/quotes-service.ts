@@ -1,12 +1,36 @@
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, where, orderBy, limit, getDoc, } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Quote, QuoteItem } from "@/types";
+import { z } from "zod";
+
+const quoteItemSchema = z.object({
+  descripcion: z.string().min(1),
+  horas: z.number().min(0),
+  costoPorHora: z.number().min(0),
+  // subtotal no se valida aquí, se calcula en el servicio
+});
+
+export const quoteCreateSchema = z.object({
+  numero: z.string().min(1),
+  titulo: z.string().optional(),
+  clienteId: z.string().min(1),
+  clienteNombre: z.string().min(1),
+  items: z.array(quoteItemSchema).min(1, "La cotización debe tener al menos un item."),
+  subtotal: z.number(),
+  iva: z.number(),
+  total: z.number(),
+  contenido: z.string().optional(),
+  estado: z.enum(["borrador", "enviada", "aprobada", "rechazada"]),
+  pdfUrl: z.string().optional(),
+});
+
+export const quoteUpdateSchema = quoteCreateSchema.partial();
 
 /**
  * Datos necesarios para crear una cotización.
  * Se omiten los campos generados automáticamente por el servicio o la base de datos.
  */
-export type QuoteCreationData = Omit<Quote, "id" | "fecha" | "aprobacionNotas" | "createdAt" | "updatedAt" | "items"> & { items: Omit<QuoteItem, "subtotal">[] };
+export type QuoteCreationData = z.infer<typeof quoteCreateSchema>;
 
 const QUOTES_COLLECTION = "cotizaciones";
 
@@ -48,7 +72,12 @@ const create = async (data: QuoteCreationData): Promise<string> => {
   return docRef.id;
 };
 
-const update = async (id: string, data: Partial<Omit<Quote, "id" | "createdAt" | "fecha">>): Promise<void> => {
+const update = async (id: string, data: z.infer<typeof quoteUpdateSchema>): Promise<void> => {
+  // Si se actualizan los items, recalcular subtotales
+  if (data.items) {
+    data.items = data.items.map(item => ({ ...item, subtotal: item.horas * item.costoPorHora }));
+  }
+
   // Clonamos el objeto para no mutar el original
   const cleanData = { ...data };
 
@@ -97,4 +126,6 @@ export const quotesService = {
   update,
   delete: remove,
   getNextQuoteNumber,
+  quoteCreateSchema,
+  quoteUpdateSchema,
 };

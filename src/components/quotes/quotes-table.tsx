@@ -40,7 +40,7 @@ export function QuotesTable({
   onDataChange,
 }: QuotesTableProps) {
   const [approvingQuote, setApprovingQuote] = useState<Quote | null>(null);
-  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [sendingToWebhookId, setSendingToWebhookId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const getEstadoBadge = (estado: Quote["estado"]) => {
@@ -66,27 +66,27 @@ export function QuotesTable({
     setApprovingQuote(null);
   };
 
-  const handleSendEmail = async (quoteId: string) => {
-    setSendingEmailId(quoteId);
+  const handleSendToWebhook = async (quoteId: string) => {
+    setSendingToWebhookId(quoteId);
     try {
       const response = await fetch(`/api/quotes/${quoteId}/send`, {
         method: 'POST',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send email');
+        throw new Error('Failed to send data to webhook');
       }
 
       toast({
-        title: "Correo Enviado",
-        description: "La cotización ha sido enviada al cliente exitosamente.",
+        title: "Enviado a N8N",
+        description: "La cotización ha sido enviada al flujo de trabajo correctamente.",
       });
       onDataChange(); // Recarga los datos para mostrar el nuevo estado
     } catch (error) {
-      console.error("Error sending quote email:", error);
-      toast({ title: "Error", description: "No se pudo enviar el correo.", variant: "destructive" });
+      console.error("Error sending data to N8N webhook:", error);
+      toast({ title: "Error", description: "No se pudo enviar la cotización al flujo de trabajo.", variant: "destructive" });
     } finally {
-      setSendingEmailId(null);
+      setSendingToWebhookId(null);
     }
   };
 
@@ -190,12 +190,12 @@ export function QuotesTable({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => quote.id && handleSendEmail(quote.id)}
-                    disabled={!quote.id || sendingEmailId === quote.id}
+                    onClick={() => quote.id && handleSendToWebhook(quote.id)}
+                    disabled={!quote.id || sendingToWebhookId === quote.id}
                     className="h-8 w-8"
-                    title="Enviar por Correo"
+                    title="Enviar a N8N"
                   >
-                    {sendingEmailId === quote.id ? (
+                    {sendingToWebhookId === quote.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Send className="h-3.5 w-3.5" />

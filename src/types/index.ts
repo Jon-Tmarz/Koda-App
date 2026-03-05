@@ -125,6 +125,7 @@ export interface ConfiguracionGlobal {
   iva: number;
   empresa: string;
   logo?: string;
+  n8nWebhookUrl?: string;
 }
 
 export interface APIKey {

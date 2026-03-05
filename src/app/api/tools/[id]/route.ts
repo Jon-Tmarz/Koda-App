@@ -1,86 +1,90 @@
-import { NextResponse, NextRequest } from "next/server";
-import { requireAPIKey } from "@/lib/api-auth";
-import { herramientasService, HerramientaFormData } from "@/lib/tools-service";
+import { NextRequest, NextResponse } from 'next/server';
+import { herramientasService } from '@/lib/tools-service';
+import { requireAPIKey } from '@/lib/api-auth';
+import { z } from 'zod';
 
-type RouteParams = {
-  params: {
-    id: string;
-  };
-};
+interface Params {
+  params: { id: string };
+}
 
-// GET /api/tools/[id] - Obtener una herramienta por ID
-export async function GET(request: NextRequest, { params }: RouteParams) {
+/**
+ * GET /api/tools/[id]
+ * Obtiene una herramienta por su ID.
+ * No requiere autenticación.
+ */
+export async function GET(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
-    const herramienta = await herramientasService.getById(id);
-
-    if (!herramienta) {
-      return NextResponse.json({ success: false, error: "Herramienta no encontrada" }, { status: 404 });
+    const tool = await herramientasService.getById(params.id);
+    if (!tool) {
+      return NextResponse.json({ success: false, error: 'Tool not found' }, { status: 404 });
     }
-
-    return NextResponse.json({ success: true, data: herramienta });
+    return NextResponse.json({ success: true, data: tool });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error('[TOOLS_GET_BY_ID_ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// PUT /api/tools/[id] - Actualizar una herramienta
-export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireAPIKey(request);
-  if (!auth.valid) {
-    return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
-  }
-
+/**
+ * PUT /api/tools/[id]
+ * Actualiza una herramienta existente.
+ * Requiere autenticación por API Key.
+ */
+export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
-    const body = await request.json();
-
-    const existingTool = await herramientasService.getById(id);
-    if (!existingTool) {
-      return NextResponse.json({ success: false, error: "Herramienta no encontrada" }, { status: 404 });
+    const auth = await requireAPIKey(request);
+    if (!auth.valid) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
     }
 
-    const dataToUpdate: HerramientaFormData = {
-      nombre: body.nombre ?? existingTool.nombre,
-      categoria: body.categoria ?? existingTool.categoria,
-      tipoCobranza: body.tipoCobranza ?? existingTool.tipoCobranza,
-      costo: body.costo ?? existingTool.costo,
-      divisa: body.divisa ?? existingTool.divisa,
-      descripcion: body.descripcion ?? existingTool.descripcion,
-      proveedor: body.proveedor ?? existingTool.proveedor,
-      disponible: body.disponible ?? existingTool.disponible,
-    };
+    const tool = await herramientasService.getById(params.id);
+    if (!tool) {
+      return NextResponse.json({ success: false, error: 'Tool not found' }, { status: 404 });
+    }
 
-    await herramientasService.update(id, dataToUpdate);
-    const updatedTool = await herramientasService.getById(id);
+    const json = await request.json();
+    const dataToUpdate = herramientasService.herramientaUpdateSchema.parse(json);
 
-    return NextResponse.json({ success: true, message: "Herramienta actualizada exitosamente", data: updatedTool });
+    await herramientasService.update(params.id, dataToUpdate);
+    const updatedTool = await herramientasService.getById(params.id);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Herramienta actualizada exitosamente',
+      data: updatedTool,
+    });
+
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ success: false, error: 'Validation failed', details: error.errors }, { status: 400 });
+    }
+    console.error('[TOOLS_PUT_ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// DELETE /api/tools/[id] - Eliminar una herramienta
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const auth = await requireAPIKey(request);
-  if (!auth.valid) {
-    return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
-  }
-
+/**
+ * DELETE /api/tools/[id]
+ * Elimina una herramienta.
+ * Requiere autenticación por API Key.
+ */
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
-    const { id } = params;
-
-    const existingTool = await herramientasService.getById(id);
-    if (!existingTool) {
-      return NextResponse.json({ success: false, error: "Herramienta no encontrada" }, { status: 404 });
+    const auth = await requireAPIKey(request);
+    if (!auth.valid) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: 401 });
     }
 
-    await herramientasService.delete(id);
-    return NextResponse.json({ success: true, message: "Herramienta eliminada exitosamente", data: { id } });
+    const tool = await herramientasService.getById(params.id);
+    if (!tool) {
+      return NextResponse.json({ success: false, error: 'Tool not found' }, { status: 404 });
+    }
+
+    await herramientasService.delete(params.id);
+
+    return NextResponse.json({ success: true, message: 'Herramienta eliminada exitosamente' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Error interno del servidor";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error('[TOOLS_DELETE_ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }

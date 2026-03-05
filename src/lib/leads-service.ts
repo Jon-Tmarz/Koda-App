@@ -1,81 +1,86 @@
-import { db } from "./firebase";
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { Lead } from "@/types";
+import { z } from "zod";
 
-export interface LeadFormData {
-  contacto: string;
-  empresa: string;
-  email: string;
-  telefono?: string;
-  estado: "nuevo" | "contactado" | "negociacion" | "cerrado" | "perdido";
-  notas?: string;
-}
+const LEAD_ESTADOS = ["nuevo", "contactado", "negociacion", "cerrado", "perdido"] as const;
+
+export const leadCreateSchema = z.object({
+  contacto: z.string().min(1, "El nombre de contacto es requerido."),
+  empresa: z.string().min(1, "El nombre de la empresa es requerido."),
+  email: z.string().email("El formato del email no es válido."),
+  telefono: z.string().optional(),
+  estado: z.enum(LEAD_ESTADOS).default("nuevo"),
+  notas: z.string().optional(),
+});
+
+export const leadUpdateSchema = leadCreateSchema.partial();
+
+export type LeadCreationData = z.infer<typeof leadCreateSchema>;
+
+const LEADS_COLLECTION = "leads";
+
+const getAll = async (): Promise<Lead[]> => {
+  const coll = collection(db, LEADS_COLLECTION);
+  const q = query(coll, orderBy("createdAt", "desc"));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt ? new Date(doc.data().createdAt.toDate()) : undefined,
+    updatedAt: doc.data().updatedAt ? new Date(doc.data().updatedAt.toDate()) : undefined,
+  })) as Lead[];
+};
+
+const getById = async (id: string): Promise<Lead | null> => {
+  const docRef = doc(db, LEADS_COLLECTION, id);
+  const docSnap = await getDoc(docRef);
+  if (!docSnap.exists()) {
+    return null;
+  }
+  const data = docSnap.data();
+  return {
+    id: docSnap.id,
+    ...data,
+    createdAt: data.createdAt ? new Date(data.createdAt.toDate()) : undefined,
+    updatedAt: data.updatedAt ? new Date(data.updatedAt.toDate()) : undefined,
+  } as Lead;
+};
+
+const create = async (data: LeadCreationData): Promise<string> => {
+  const docRef = await addDoc(collection(db, LEADS_COLLECTION), {
+    ...data,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+  return docRef.id;
+};
+
+const update = async (id: string, data: z.infer<typeof leadUpdateSchema>): Promise<void> => {
+  const cleanData = { ...data };
+
+  for (const key in cleanData) {
+    if (Object.prototype.hasOwnProperty.call(cleanData, key)) {
+      if (cleanData[key as keyof typeof cleanData] === undefined) {
+        delete cleanData[key as keyof typeof cleanData];
+      }
+    }
+  }
+
+  const docRef = doc(db, LEADS_COLLECTION, id);
+  await updateDoc(docRef, { ...cleanData, updatedAt: Timestamp.now() });
+};
+
+const remove = async (id: string): Promise<void> => {
+  await deleteDoc(doc(db, LEADS_COLLECTION, id));
+};
 
 export const leadsService = {
-  /**
-   * Obtener todos los leads
-   */
-  async getAll(): Promise<Lead[]> {
-    const q = query(collection(db, "leads"), orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate(),
-        updatedAt: data.updatedAt?.toDate(),
-      };
-    }) as Lead[];
-  },
-
-  /**
-   * Crear un nuevo lead
-   */
-  async create(data: LeadFormData): Promise<string> {
-    const docRef = await addDoc(collection(db, "leads"), {
-      ...data,
-      notas: data.notas || "",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return docRef.id;
-  },
-
-  /**
-   * Actualizar un lead existente
-   */
-  async update(id: string, data: Partial<LeadFormData>): Promise<void> {
-    const docRef = doc(db, "leads", id);
-    await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
-  },
-
-  /**
-   * Eliminar un lead
-   */
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, "leads", id));
-  },
-
-  /**
-   * Contar leads por estado
-   */
-  getEstadoCounts(leads: Lead[]) {
-    return {
-      todos: leads.length,
-      nuevo: leads.filter((l) => l.estado === "nuevo").length,
-      contactado: leads.filter((l) => l.estado === "contactado").length,
-      negociacion: leads.filter((l) => l.estado === "negociacion").length,
-      cerrado: leads.filter((l) => l.estado === "cerrado").length,
-      perdido: leads.filter((l) => l.estado === "perdido").length,
-    };
-  },
-
-  /**
-   * Filtrar leads por estado
-   */
-  filterByEstado(leads: Lead[], estado: string): Lead[] {
-    if (estado === "todos") return leads;
-    return leads.filter((lead) => lead.estado === estado);
-  },
+  getAll,
+  getById,
+  create,
+  update,
+  delete: remove,
+  leadCreateSchema,
+  leadUpdateSchema,
 };

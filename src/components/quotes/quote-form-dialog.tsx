@@ -93,7 +93,12 @@ export function QuoteFormDialog({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const onOpenChange = isControlled ? controlledOnOpenChange! : setInternalOpen;
-  const itemsAdd = [{title: "Descripción", class: "col-span-2"}, {title: "Horas", class: "text-center"}, {title: "Costo/Hora", class: "text-right"}, {title: "Costo Total", class: "text-right"}]
+  const itemsAdd = [
+    {title: "Descripción", class: "col-span-2"},
+    {title: "Horas", class: "text-center"},
+    {title: "Costo/Hora", class: "text-right"},
+    {title: "Costo Total", class: "text-right"}
+  ]
 
   const form = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
@@ -114,8 +119,6 @@ export function QuoteFormDialog({
     fetchLatestConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // fetchLatestConfig is memoized by useCallback
-
-  console.log("Servicios disponibles:", servicios);
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = form;
 

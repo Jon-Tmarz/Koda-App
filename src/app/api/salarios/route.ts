@@ -1,30 +1,7 @@
 import { NextResponse } from "next/server";
-import { 
-  calcularSalarioCompleto, 
-  calcularHorasExtrasYRecargos 
-} from "@/lib/salarios";
 import { CARGOS_LIST } from "@/types/salarios";
 import type { CargoTipo } from "@/types/salarios";
-import { getSalarioConfig } from "@/lib/firestore-services";
-import { getLatestExchangeRate } from "@/lib/divisas-service";
-
-/**
- * Redondea un número a 2 decimales
- */
-const round2 = (num: number): number => Math.round(num * 100) / 100;
-
-/**
- * Convierte COP a USD usando el último exchange rate de Firestore
- */
-const copToUsd = (cop: number, rate: number): number => round2(cop / rate);
-
-/**
- * Crea un objeto con valores en COP y USD
- */
-const dualCurrency = (cop: number, rate: number) => ({
-  cop: round2(cop),
-  usd: copToUsd(cop, rate)
-});
+import { salariosApiService } from "@/lib/salarios-api-service";
 
 /**
  * GET /api/salarios?año=2025
@@ -51,88 +28,18 @@ export async function GET(request: Request) {
       );
     }
 
-    // Obtener configuración desde Firestore
-    const config = await getSalarioConfig(año);
-    
-    // Si no existe configuración para ese año, usar default
-    if (!config) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Configuración no encontrada",
-          message: `No existe configuración de salarios para el año ${año}`,
-        },
-        { status: 404 }
-      );
-    }
-
-    // Obtener exchange rate para conversión USD
-    const exchangeRate = await getLatestExchangeRate();
-    const rate = exchangeRate?.rate || 4000; // Fallback si no hay rate guardado
-
-    // Obtener multiplicadores de Firestore
-    const { getCargos } = await import("@/lib/firestore-services");
-    const cargosDb = await getCargos();
-    const { CARGO_MULTIPLICADORES } = await import("@/types/salarios");
-    const multipliers: Record<string, number> = { ...CARGO_MULTIPLICADORES };
-    
-    cargosDb.forEach(c => {
-      multipliers[c.nombre] = c.multiplicador;
-    });
+    // Usar el servicio centralizado para obtener toda la configuración
+    const { config, multipliers, exchangeRate, rate, usingFallbackConfig } = await salariosApiService.getApiConfig(año);
 
     // Calcular valores por hora para todos los cargos
-    const salarios = CARGOS_LIST.map((cargo: CargoTipo) => {
-      const salarioCompleto = calcularSalarioCompleto(config, cargo, multipliers);
-      const recargos = calcularHorasExtrasYRecargos(salarioCompleto.porHora);
-      
-      return {
-        cargo,
-        multiplicador: salarioCompleto.mensual.multiplicador,
-        horasLegales: config.horasLegales,
-        desglose: {
-          salarioBasePorHora: dualCurrency(salarioCompleto.porHora.salarioHoraBase, rate),
-          costoEmpresaPorHora: dualCurrency(salarioCompleto.porHora.costoHoraEmpresa, rate),
-          gananciaPorHora: dualCurrency(salarioCompleto.porHora.gananciaHora, rate),
-          ivaPorHora: dualCurrency(salarioCompleto.porHora.ivaHora, rate),
-          totalPorHora: dualCurrency(salarioCompleto.porHora.totalPorHora, rate),
-        },
-        tiposDeHora: {
-          horaOrdinaria: {
-            recargo: 0,
-            valorPorHora: dualCurrency(recargos.valorHoraBase, rate),
-          },
-          horaExtraDiurna: {
-            recargo: recargos.horaExtraDiurna.recargo,
-            valorPorHora: dualCurrency(recargos.horaExtraDiurna.valorPorHora, rate),
-          },
-          recargoNocturno: {
-            recargo: recargos.recargoNocturno.recargo,
-            valorPorHora: dualCurrency(recargos.recargoNocturno.valorPorHora, rate),
-          },
-          horaExtraNocturna: {
-            recargo: recargos.horaExtraNocturna.recargo,
-            valorPorHora: dualCurrency(recargos.horaExtraNocturna.valorPorHora, rate),
-          },
-          dominicalFestivo: {
-            recargo: recargos.dominicalFestivo.recargo,
-            valorPorHora: dualCurrency(recargos.dominicalFestivo.valorPorHora, rate),
-          },
-        },
-      };
-    });
+    const salarios = CARGOS_LIST.map((cargo: CargoTipo) => 
+      salariosApiService.buildCargoData(cargo, config, multipliers, rate)
+    );
 
     return NextResponse.json({
       success: true,
       data: {
-        año: config.año,
-        salarioBase: config.salarioBase,
-        horasLegales: config.horasLegales,
-        currentRate: {
-          divisa: "USD/COP",
-          rate,
-          timestamp: exchangeRate?.timestamp,
-          fallback: !exchangeRate,
-        },
+        ...salariosApiService.buildApiMetadata(año, config, exchangeRate, rate, usingFallbackConfig),
         salarios,
       },
     });

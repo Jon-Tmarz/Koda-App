@@ -348,6 +348,37 @@ Actualiza una cotización existente. Solo los campos proporcionados serán actua
 
 ---
 
+#### POST `/api/quotes/[id]/send`
+
+Envía los datos de una cotización específica a un webhook de N8N (configurado en la sección de Setup) y actualiza el estado de la cotización a "enviada". Esta acción se invoca normalmente desde la interfaz de usuario, pero también puede ser activada por un sistema externo si se desea automatizar el envío.
+
+**Path Parameters:**
+- `id` (requerido) - ID de la cotización a enviar.
+
+**Request Body:**
+- Vacío.
+
+**Acciones:**
+1.  Obtiene la cotización y los datos del cliente asociado.
+2.  Busca la URL del webhook de N8N en la configuración global.
+3.  Envía un objeto JSON con los datos de `quote`, `lead` y `config` al webhook de N8N.
+4.  Actualiza el estado de la cotización a `enviada`.
+
+**Respuesta exitosa (200):**
+```json
+{
+  "success": true,
+  "message": "Data sent to webhook successfully"
+}
+```
+
+**Errores:**
+- `400` - Falta el ID de la cotización.
+- `404` - Cotización o cliente no encontrados.
+- `500` - La URL del webhook de N8N no está configurada o hubo un error interno.
+
+---
+
 #### DELETE `/api/quotes/[id]`
 
 Elimina permanentemente una cotización.

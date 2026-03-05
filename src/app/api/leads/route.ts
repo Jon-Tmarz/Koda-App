@@ -1,137 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
-import { leadsService } from "@/lib/leads-service";
-import { requireAPIKey } from "@/lib/api-auth";
+import { NextRequest, NextResponse } from 'next/server';
+import { leadsService } from '@/lib/leads-service';
+import { z } from 'zod';
 
 /**
  * GET /api/leads
- * Obtiene todos los leads
- * Requiere API key en header Authorization o X-API-Key
+ * Obtiene todos los leads.
  */
-export async function GET(request: NextRequest) {
-  // Validar API key
-  const auth = await requireAPIKey(request);
-  if (!auth.valid) {
-    return NextResponse.json(
-      { success: false, error: auth.error },
-      { status: 401 }
-    );
-  }
-
+export async function GET() {
   try {
     const leads = await leadsService.getAll();
-    
-    return NextResponse.json({
-      success: true,
-      data: leads,
-      count: leads.length,
-    });
+    return NextResponse.json({ success: true, data: leads, count: leads.length });
   } catch (error) {
-    console.error("Error obteniendo leads:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Error al obtener leads",
-        message: error instanceof Error ? error.message : "Error desconocido",
-      },
-      { status: 500 }
-    );
+    console.error('[LEADS_GET_ALL_ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 /**
  * POST /api/leads
- * Crea un nuevo lead
- * Requiere API key en header Authorization o X-API-Key
- * 
- * Body:
- * {
- *   "empresa": "Empresa XYZ",
- *   "contacto": "Juan Pérez",
- *   "email": "juan@empresa.com",
- *   "telefono": "+57 300 123 4567",
- *   "estado": "nuevo",
- *   "notas": "Lead desde formulario web"
- * }
+ * Crea un nuevo lead.
  */
 export async function POST(request: NextRequest) {
-  // Validar API key
-  const auth = await requireAPIKey(request);
-  if (!auth.valid) {
-    return NextResponse.json(
-      { success: false, error: auth.error },
-      { status: 401 }
-    );
-  }
-
   try {
-    const body = await request.json();
-    
-    // Validar campos requeridos
-    if (!body.empresa || !body.contacto || !body.email) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Datos incompletos",
-          message: "Los campos empresa, contacto y email son requeridos",
-        },
-        { status: 400 }
-      );
-    }
+    const json = await request.json();
+    const data = leadsService.leadCreateSchema.parse(json);
 
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(body.email)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Email inválido",
-          message: "El formato del email no es válido",
-        },
-        { status: 400 }
-      );
-    }
+    const leadId = await leadsService.create(data);
+    const newLead = await leadsService.getById(leadId);
 
-    // Validar estado
-    const estadosValidos = ["nuevo", "contactado", "negociacion", "cerrado", "perdido"];
-    if (body.estado && !estadosValidos.includes(body.estado)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Estado inválido",
-          message: `El estado debe ser uno de: ${estadosValidos.join(", ")}`,
-        },
-        { status: 400 }
-      );
-    }
+    return NextResponse.json({
+      success: true,
+      message: 'Lead creado exitosamente',
+      data: newLead,
+    }, { status: 201 });
 
-    const leadData = {
-      empresa: body.empresa,
-      contacto: body.contacto,
-      email: body.email,
-      telefono: body.telefono || "",
-      estado: body.estado || "nuevo",
-      notas: body.notas || "",
-    };
-
-    const leadId = await leadsService.create(leadData);
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: { id: leadId, ...leadData },
-        message: "Lead creado exitosamente",
-      },
-      { status: 201 }
-    );
   } catch (error) {
-    console.error("Error creando lead:", error);
-    return NextResponse.json(
-      {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({
         success: false,
-        error: "Error al crear lead",
-        message: error instanceof Error ? error.message : "Error desconocido",
-      },
-      { status: 500 }
-    );
+        error: 'Validation failed',
+        details: error.errors,
+      }, { status: 400 });
+    }
+
+    console.error('[LEADS_POST_ERROR]', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
