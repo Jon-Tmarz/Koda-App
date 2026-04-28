@@ -1,5 +1,5 @@
 import { db } from "./firebase";
-import { collection, getDocs, getDoc, setDoc, updateDoc, doc, Timestamp, query, orderBy, limit, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, getDoc, setDoc, updateDoc, doc, Timestamp, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import type { SalarioConfig, Cargo, CargoTipo } from "@/types";
 
 const COLLECTIONS = {
@@ -18,11 +18,11 @@ const toDate = (ts: Date | { toDate(): Date } | { seconds: number } | null | und
   return undefined;
 };
 
-const salariosServiceInternal = {
+export const salariosService = {
   /**
    * Obtiene la configuración de salario para un año específico
    */
-  async getSalarioConfig(año: number): Promise<SalarioConfig | null> {
+  async getConfigByYear(año: number): Promise<SalarioConfig | null> {
     try {
       const docRef = doc(db, COLLECTIONS.SALARIOS, año.toString());
       const docSnap = await getDoc(docRef);
@@ -185,10 +185,4 @@ const salariosServiceInternal = {
       throw error;
     }
   }
-};
-
-export const salariosService = {
-  ...salariosServiceInternal,
-  // Manteniendo los nombres originales para compatibilidad con la UI
-  getConfigByYear: salariosServiceInternal.getSalarioConfig,
 };

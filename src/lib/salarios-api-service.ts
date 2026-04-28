@@ -22,7 +22,7 @@ const dualCurrency = (cop: number, rate: number) => ({
  */
 async function getApiConfig(año: number) {
   // 1. Obtener configuración de salarios desde Firestore
-  let config = await salariosService.getSalarioConfig(año);
+  let config = await salariosService.getConfigByYear(año);
   let usingFallbackConfig = false;
 
   if (!config) {

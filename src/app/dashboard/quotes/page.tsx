@@ -9,7 +9,7 @@ import { QuoteContentDialog } from "@/components/quotes/quote-content-dialog";
 import { DeleteQuoteDialog } from "@/components/quotes/delete-quote-dialog";
 import { quotesService, type Quote } from "@/lib/quotes-service";
 import { projectsService } from "@/lib/projects-service";
-import { configService } from "@/lib/config-service";
+import { setupService } from "@/lib/setup-service";
 import { useToast } from "@/hooks/use-toast";
 import { useQuoteForm } from "@/hooks/use-quote-form";
 import { Plus } from "lucide-react";
@@ -32,7 +32,7 @@ export default function QuotesPage() {
     setIsClient(true);
     const fetchConfig = async () => {
       try {
-        const config = await configService.getGlobalConfig();
+        const config = await setupService.getGlobalConfig();
         setLogoUrl(config?.logo);
       } catch (error) {
         console.error("Error fetching global config for PDF logo:", error);

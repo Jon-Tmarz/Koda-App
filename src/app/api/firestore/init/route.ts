@@ -1,14 +1,11 @@
 // API Route para inicializar Firestore con datos por defecto
 import { NextResponse } from "next/server";
-import {
-  checkFirestoreConnection,
-  initializeFirestoreData,
-} from "@/lib/firestore-services";
+import { setupService } from "@/lib/setup-service";
 
 export async function GET() {
   try {
     // Primero verificar conexión
-    const connectionResult = await checkFirestoreConnection();
+    const connectionResult = await setupService.checkFirestoreConnection();
     
     if (!connectionResult.connected) {
       return NextResponse.json(
@@ -39,7 +36,7 @@ export async function GET() {
 export async function POST() {
   try {
     // Verificar conexión primero
-    const connectionResult = await checkFirestoreConnection();
+    const connectionResult = await setupService.checkFirestoreConnection();
     
     if (!connectionResult.connected) {
       return NextResponse.json(
@@ -53,7 +50,7 @@ export async function POST() {
     }
 
     // Inicializar datos
-    const initResult = await initializeFirestoreData();
+    const initResult = await setupService.initializeFirestoreData();
 
     if (!initResult.success) {
       return NextResponse.json(
