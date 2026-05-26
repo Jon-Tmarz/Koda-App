@@ -6,13 +6,13 @@ import { z } from "zod";
 // Zod schema for creation
 export const herramientaCreateSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido."),
-  categoria: typeof CATEGORIAS_HERRAMIENTA[number];
-  tipoCobranza: typeof TIPOS_COBRANZA[number];
+  categoria: z.enum(CATEGORIAS_HERRAMIENTA as unknown as [string, ...string[]]),
+  tipoCobranza: z.enum(TIPOS_COBRANZA as unknown as [string, ...string[]]),
   costo: z.coerce.number().min(0).default(0),
-  divisa: z.enum(DIVISAS).default("USD"),
-  descripcion?: string;
-  proveedor?: string;
-  disponible: boolean;
+  divisa: z.enum(DIVISAS as unknown as [string, ...string[]]).default("USD"),
+  descripcion: z.string().optional(),
+  proveedor: z.string().optional(),
+  disponible: z.boolean(),
 });
 
 // Zod schema for updates (all fields are optional)
@@ -25,15 +25,13 @@ export const herramientasService = {
   /**
    * Obtener todas las herramientas
    */
-  async getAll(): Promise<Herramienta[]> {
-    const querySnapshot = await getDocs(collection(db, "herramientas"));
   async getAll(filters: Record<string, string> = {}): Promise<Herramienta[]> {
     const coll = collection(db, "herramientas");
     const constraints: QueryConstraint[] = [];
 
     // Construir filtros dinámicamente
     if (filters.disponible) {
-      constraints.push(where("disponible", "==", filters.disponible === 'true'));
+      constraints.push(where("disponible", "==", filters.disponible === "true"));
     }
     if (filters.categoria) {
       constraints.push(where("categoria", "==", filters.categoria));
@@ -81,12 +79,11 @@ export const herramientasService = {
    * Crear una nueva herramienta
    */
   async create(data: HerramientaCreationData): Promise<string> {
-    await addDoc(collection(db, "herramientas"), {
+    const docRef = await addDoc(collection(db, "herramientas"), {
       ...data,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
-    const docRef = await addDoc(collection(db, "herramientas"), { ...data, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
     return docRef.id;
   },
 
