@@ -48,8 +48,8 @@ export function TalentCalculator() {
 
       <Tabs defaultValue="empleado" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto mb-8">
-          <TabsTrigger value="empleado">Vista Empleado</TabsTrigger>
-          <TabsTrigger value="empleador">Vista Empleador</TabsTrigger>
+          <TabsTrigger value="empleado" className="data-[state=active]:bg-koda-blue data-[state=active]:text-koda-white">Vista Empleado</TabsTrigger>
+          <TabsTrigger value="empleador" className="data-[state=active]:bg-koda-blue data-[state=active]:text-koda-white">Vista Empleador</TabsTrigger>
         </TabsList>
         
         <TabsContent value="empleado">

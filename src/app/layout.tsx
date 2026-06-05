@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
-import { Montserrat, Kanit } from "next/font/google";
+import { Kanit, Montserrat } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import Favicon from "./icon.webp";
 
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
+const fontKanit = Kanit({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
+  weight: ["300", "400", "600", "700"],
+  variable: "--font-kanit",
 });
 
-const kanit = Kanit({
-  variable: "--font-kanit",
+const fontMontserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
+  variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
-  title: "Koda - Portal Administrativo",
-  description: "Plataforma de gestión para servicios tecnológicos",
+  title: "Koda - Sistema de Gestión Comercial",
+  description: "Gestión de servicios profesionales y talento humano en Colombia.",
+  icons: {
+    icon: Favicon.src,
+  },
 };
 
 export default function RootLayout({
@@ -30,16 +30,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${montserrat.variable} ${kanit.variable} antialiased text-foreground`}
+        className={`${fontKanit.variable} ${fontMontserrat.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

@@ -27,27 +27,27 @@ export function CalculatorInputs({
   placeholderSalario
 }: CalculatorInputsProps) {
   return (
-    <div className="max-w-2xl mx-auto w-full">
+    <div className="max-w-2xl mx-auto w-full bg-koda-white">
       <Card className="border-primary/10 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-foreground">
-            <Calculator className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-koda-purple">
+            <Calculator className="h-5 w-5 text-koda-purple" />
             Configuración de Cálculo
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-koda-blue-dark">
             Ingresa el salario mensual base y las horas para obtener el desglose.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="grid gap-2">
-              <Label htmlFor="salario" className="text-foreground">Salario Mensual (COP)</Label>
+              <Label htmlFor="salario" className="text-koda-blue-dark">Salario Base Mensual (COP)</Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                <span className="absolute left-3 top-2.5 text-muted-koda-blue-dark">$</span>
                 <Input
                   id="salario"
                   type="number"
-                  className="pl-7"
+                  className="pl-7 bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                   placeholder={placeholderSalario || "0"}
                   value={salarioInput}
                   onChange={(e) => setSalarioInput(e.target.value)}
@@ -55,10 +55,11 @@ export function CalculatorInputs({
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="horas" className="text-foreground">Horas a Calcular</Label>
+              <Label htmlFor="horas" className="text-koda-blue-dark">Horas a Calcular</Label>
               <Input
                 id="horas"
                 type="number"
+                className="bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                 value={horas}
                 onChange={(e) => setHoras(Number(e.target.value))}
               />
@@ -68,22 +69,24 @@ export function CalculatorInputs({
           <Separator />
           
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Horas Extras y Recargos (Opcional)</h3>
+            <h3 className="text-sm font-semibold text-koda-purple">Horas Extras y Recargos (Opcional)</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-1.5">
-                <Label htmlFor="e-diurnas" className="text-xs text-muted-foreground">Extras Diurnas (+25%)</Label>
+                <Label htmlFor="e-diurnas" className="text-xs text-muted-koda-blue-dark">Extras Diurnas (+25%)</Label>
                 <Input
                   id="e-diurnas"
                   type="number"
+                  className="bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                   placeholder="0"
                   value={extras.diurnas || ""}
                   onChange={(e) => setExtras({ ...extras, diurnas: Number(e.target.value) })}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="e-nocturnas" className="text-xs text-muted-foreground">Extras Nocturnas (+75%)</Label>
+                <Label htmlFor="e-nocturnas" className="text-xs text-muted-koda-blue-dark">Extras Nocturnas (+75%)</Label>
                 <Input
                   id="e-nocturnas"
+                  className="bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                   type="number"
                   placeholder="0"
                   value={extras.nocturnas || ""}
@@ -91,9 +94,10 @@ export function CalculatorInputs({
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="recargo-n" className="text-xs text-muted-foreground">Recargo Nocturno (+35%)</Label>
+                <Label htmlFor="recargo-n" className="text-xs text-muted-koda-blue-dark">Recargo Nocturno (+35%)</Label>
                 <Input
                   id="recargo-n"
+                  className="bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                   type="number"
                   placeholder="0"
                   value={extras.recargoNocturno || ""}
@@ -101,9 +105,10 @@ export function CalculatorInputs({
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label htmlFor="dominicales" className="text-xs text-muted-foreground">Dominical/Festivo (+80%)</Label>
+                <Label htmlFor="dominicales" className="text-xs text-muted-koda-blue-dark">Dominical/Festivo (+80%)</Label>
                 <Input
                   id="dominicales"
+                  className="bg-koda-silver/25 focus:bg-koda-silver/50 transition-colors focus:outline-none rounded-lg"
                   type="number"
                   placeholder="0"
                   value={extras.dominicales || ""}

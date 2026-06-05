@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutDashboard, Settings, Menu, X, FileText, Contact, Briefcase, UserCog, LogOut, Wrench, CalendarArrowUp } from "lucide-react";
+import { Briefcase, CalendarArrowUp, Contact, FileText, Home, LogOut, Menu, Settings, UserCog, Wrench, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { KodaLogo } from "./koda-logo";
 
 const navigation = [
   { name: "Home", href: "/dashboard", icon: Home },
@@ -58,12 +59,7 @@ export function Sidebar() {
         {/* Header */}
         <div className="flex h-16 items-center justify-between border-b px-4">
           {!collapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <span className="text-sm font-bold">K</span>
-              </div>
-              <span className="text-xl font-bold">KODA</span>
-            </Link>
+            <Link href="/dashboard"><KodaLogo /></Link>
           )}
           <Button
             variant="ghost"

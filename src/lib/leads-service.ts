@@ -75,12 +75,38 @@ const remove = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, LEADS_COLLECTION, id));
 };
 
+const filterByEstado = (leads: Lead[], estado: string): Lead[] => {
+  if (estado === "todos") return leads;
+  return leads.filter((lead) => lead.estado === estado);
+};
+
+const getEstadoCounts = (leads: Lead[]) => {
+  const stats = {
+    todos: leads.length,
+    nuevo: 0,
+    contactado: 0,
+    negociacion: 0,
+    cerrado: 0,
+    perdido: 0,
+  };
+
+  leads.forEach((lead) => {
+    if (lead.estado && lead.estado in stats) {
+      stats[lead.estado as keyof typeof stats]++;
+    }
+  });
+
+  return stats;
+};
+
 export const leadsService = {
   getAll,
   getById,
   create,
   update,
   delete: remove,
+  filterByEstado,
+  getEstadoCounts,
   leadCreateSchema,
   leadUpdateSchema,
 };

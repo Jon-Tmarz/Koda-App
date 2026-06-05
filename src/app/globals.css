@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   :root {
@@ -90,15 +93,6 @@
     --border: 299 30% 20%; /* Purple tinted borders */
     --input: 299 30% 15%;
     --ring: 49 89% 42%; /* Gold */
-    
-    /* Custom Koda Colors (same in both modes) */
-    --koda-white: 0 0% 100%;
-    --koda-blue-dark: 240 100% 3%;
-    --koda-gold: 49 89% 42%;
-    --koda-silver: 0 0% 75%;
-    --koda-purple: 299 100% 8%;
-    --koda-blue: 200 100% 50%;
-    --koda-orange: 47 90% 56%;
   }
 }
 
@@ -130,6 +124,9 @@
   .text-koda-blue {
     color: hsl(var(--koda-blue));
   }
+  .text-koda-blue-dark {
+    color: hsl(var(--koda-blue-dark));
+  }
   .text-koda-orange {
     color: hsl(var(--koda-orange));
   }
@@ -145,6 +142,9 @@
   }
   .bg-koda-blue {
     background-color: hsl(var(--koda-blue));
+  }
+  .bg-koda-blue_50 {
+    background-color: hsl(var(--koda-blue) / 0.5);
   }
   .bg-koda-orange {
     background-color: hsl(var(--koda-orange));
@@ -177,4 +177,24 @@
   .font-body {
     font-family: var(--font-montserrat), system-ui, sans-serif;
   }
+}
+
+@theme light {
+  --color-koda-blue: hsl(var(--koda-blue));
+  --color-koda-gold: hsl(var(--koda-gold));
+  --color-koda-silver: hsl(var(--koda-silver));
+  --color-koda-purple: hsl(var(--koda-purple));
+  --color-koda-orange: hsl(var(--koda-orange));
+  --color-koda-blue-dark: hsl(var(--koda-blue-dark));
+  --color-koda-white: hsl(var(--koda-white));
+}
+
+@theme dark {
+  --color-koda-blue: hsl(var(--koda-blue));
+  --color-koda-gold: hsl(var(--koda-gold));
+  --color-koda-silver: hsl(var(--koda-silver));
+  --color-koda-purple: hsl(var(--koda-purple));
+  --color-koda-orange: hsl(var(--koda-orange));
+  --color-koda-blue-dark: hsl(var(--koda-blue-dark));
+  --color-koda-white: hsl(var(--koda-white));
 }

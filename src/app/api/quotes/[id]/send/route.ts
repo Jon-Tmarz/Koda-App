@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { quotesService } from '@/lib/quotes-service';
 import { leadsService } from '@/lib/leads-service';
-import { getGlobalConfig } from '@/lib/firestore-services';
+import { setupService } from '@/lib/setup-service';
 
 export async function POST(
   request: NextRequest,
@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // 1. Obtener configuración global para la URL del webhook de N8N
-    const config = await getGlobalConfig();
+    const config = await setupService.getGlobalConfig();
     const n8nWebhookUrl = config?.n8nWebhookUrl;
 
     if (!n8nWebhookUrl) {

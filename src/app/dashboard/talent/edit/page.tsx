@@ -61,7 +61,7 @@ export default function EditSalarioPage() {
     }
   }, [cargos]);
 
-  const previousConfig = allConfigs.find(c => c.año === formData.año - 1) || null;
+  const previousConfig = (allConfigs || []).find(c => c.año === formData.año - 1) || null;
 
   const handleSave = async () => {
     setSaving(true);
